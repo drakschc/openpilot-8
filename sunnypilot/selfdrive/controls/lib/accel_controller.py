@@ -20,12 +20,12 @@ ACCEL_PERSONALITY_OPTIONS = [AccelPersonality.eco, AccelPersonality.normal, Acce
 # ==============================================================================
 
 # 加速度上限的中斷點 (車速, 單位: m/s)
-A_MAX_BP = [0.0, 4.0, 8.0, 16.0, 40.0]
+A_MAX_BP = [0.0,  0.5,  1.0,  4.0,   6.0,  9.0,  11.0, 16.0,  20.0, 25.0, 30.0, 55.0]
 # 各種個性化設定下的最大加速度值 (對應 A_MAX_BP)
 A_MAX_V = {
-  AccelPersonality.eco:    [1.00, 1.00, 1.20, 0.40, 0.08],
-  AccelPersonality.normal: [1.50, 1.50, 1.35, 0.50, 0.15],
-  AccelPersonality.sport:  [2.00, 2.00, 1.50, 0.70, 0.25],
+  AccelPersonality.eco:       [1.00, 0.60, 1.00, 1.40,  1.20, 1.00, 0.80, 0.60,  0.50, 0.40, 0.12, 0.08],
+  AccelPersonality.normal:    [1.50, 0.80, 1.20, 1.80,  1.40, 1.20, 1.00, 0.80,  0.70, 0.60, 0.24, 0.10],
+  AccelPersonality.sport:     [2.00, 1.00, 1.40, 2.00,  1.60, 1.40, 1.20, 1.00,  0.90, 0.80, 0.36, 0.12],
 }
 
 # 滑行阻力 (Coast Drag) 的中斷點 (車速, 單位: m/s)
@@ -38,12 +38,12 @@ COAST_DRAG_V = {
 }
 
 # 煞車底線 (A_MIN Floor) 的中斷點 (車速, 單位: m/s)
-A_MIN_FLOOR_BP = [0.0, 5.0, 15.0, 40.0]
+A_MIN_FLOOR_V =    [3,     4.5,   7.,    9.,     25]
 # 各種個性化設定下的最大允許減速度值 (對應 A_MIN_FLOOR_BP)
-A_MIN_FLOOR_V = {
-  AccelPersonality.eco:    [-0.20, -0.35, -0.55, -0.50],
-  AccelPersonality.normal: [-0.25, -0.45, -0.75, -0.65],
-  AccelPersonality.sport:  [-0.35, -0.65, -1.00, -0.95],
+A_MIN_FLOOR_BP = {
+  AccelPersonality.eco:    [-.003, -0.25, -0.35, -0.44, -2.0],
+  AccelPersonality.normal: [-.004, -0.27, -0.37, -0.46, -2.0],
+  AccelPersonality.sport:  [-.005, -0.29, -0.39, -0.48, -2.0],
 }
 
 # ==============================================================================
