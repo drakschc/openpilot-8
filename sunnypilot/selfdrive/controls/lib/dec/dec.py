@@ -4,7 +4,7 @@ Copyright (c) 2021-, rav4kumar, Haibin Wen, sunnypilot, and a number of other co
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
-# Version = Simplified (60 On / 70 Off)
+# Version = Simplified (60 On / 70 Off) + Cruise Speed Limit
 
 from cereal import messaging
 from opendbc.car import structs
@@ -46,12 +46,20 @@ class DynamicExperimentalController:
 
     # 取得當前車速並轉換為 km/h
     v_ego_kph = sm['carState'].vEgo * 3.6
+    
+    # 取得儀表板巡航設定車速並轉換為 km/h (cruiseState.speed 原始單位為 m/s)
+    v_cruise_kph = sm['carState'].cruiseState.speed * 3.6
 
-    # 核心簡化邏輯：60 開 (blended)，70 關 (acc)
-    if v_ego_kph < WMACConstants.ENABLE_SPEED:
-      self._mode = 'blended'
-    elif v_ego_kph > WMACConstants.DISABLE_SPEED:
+    # 核心簡化邏輯：加入儀表板設定車速限制
+    if v_cruise_kph > WMACConstants.MAX_CRUISE_SET_SPEED:
+      # 條件 1：當儀表板設定車速大於 70 時，強制關閉實驗模式 (acc)
       self._mode = 'acc'
+    else:
+      # 條件 2：當儀表板設定車速在 70(含) 以下時，依據實際車速切換
+      if v_ego_kph < WMACConstants.ENABLE_SPEED:
+        self._mode = 'blended'
+      elif v_ego_kph > WMACConstants.DISABLE_SPEED:
+        self._mode = 'acc'
 
     self._active = sm['selfdriveState'].experimentalMode and self._enabled
     self._frame += 1
