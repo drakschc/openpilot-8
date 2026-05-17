@@ -19,7 +19,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 from cereal import log
 
 # 速度門檻常數 (km/h 轉換為 m/s)
-APM_DEPARTURE_SPEED = 30 * 1000 / 3600   # 30 km/h：起步激烈模式上限
+APM_DEPARTURE_SPEED = 15 * 1000 / 3600   # 15 km/h：起步激烈模式上限
 
 # 場景 2 常數 (前車絕對速度、加速度)
 V_LEAD_RELAX_ENTER = 20 * 1000 / 3600    # 20 km/h：進入前車緩和模式的門檻，同時加入前車須減速狀態
@@ -60,7 +60,7 @@ class APM:
       # 當車輛靜止時，標記為「準備起步」
       self.is_departing = True
     elif v_ego >= APM_DEPARTURE_SPEED:
-      # 當車速超過 30 km/h，解除「起步階段」標記
+      # 當車速超過 15 km/h，解除「起步階段」標記
       self.is_departing = False
 
     # --- 2. 判斷前車狀況 ---
@@ -104,7 +104,7 @@ class APM:
 
     # --- 3. 決定最終輸出的模式 (依照優先級：場景 1 > 場景 2 > 場景 3) ---
     
-    # 【最優先】場景 1：起步加速階段 (0~30 km/h)
+    # 【最優先】場景 1：起步加速階段 (0~15 km/h)
     if self.is_departing and v_ego < APM_DEPARTURE_SPEED:
       return log.LongitudinalPersonality.aggressive
 
