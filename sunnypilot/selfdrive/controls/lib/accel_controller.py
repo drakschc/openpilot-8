@@ -34,7 +34,7 @@ COAST_DRAG_BP = [0.0, 10.0, 25.0, 40.0]
 COAST_DRAG_V = {
   AccelPersonality.eco:    [-0.03, -0.05, -0.08, -0.12],
   AccelPersonality.normal: [-0.04, -0.07, -0.12, -0.18],
-  AccelPersonality.sport:  [-0.05, -0.10, -0.18, -0.28],
+  AccelPersonality.sport:  [-0.06, -0.10, -0.18, -0.28],
 }
 
 # 煞車底線 (A_MIN Floor) 的中斷點 (車速, 單位: m/s)
@@ -54,8 +54,8 @@ COAST_DEADBAND = 0.5    # 巡航死區 (m/s)，在此速差範圍內優先進入
 RAMP_OFF_RANGE = 3.0    # 接近巡航速度時，加速度上限開始線性遞減的緩衝範圍 (m/s)
 
 # 非對稱變化率限制 (Rate Limiting)
-A_MIN_TIGHTEN_RATE = 1.3  # 煞車加重時的變化率上限 (m/s³，對應原本的 MAX_DECEL_INCREASE_RATE)
-A_MIN_RELAX_RATE = 1.0    # 煞車放鬆時的變化率上限 (m/s³，對應原本的 MAX_DECEL_DECREASE_RATE)
+A_MIN_TIGHTEN_RATE = 1.5  # 煞車加重時的變化率上限 (m/s³，對應原本的 MAX_DECEL_INCREASE_RATE)
+A_MIN_RELAX_RATE = 0.6    # 煞車放鬆時的變化率上限 (m/s³，對應原本的 MAX_DECEL_DECREASE_RATE)
 A_MAX_RATE = 0.8          # 加速度上限的變化率 (m/s³)
 
 # 動態安全廊道間距 (Dynamic Safety Corridor Gap)
