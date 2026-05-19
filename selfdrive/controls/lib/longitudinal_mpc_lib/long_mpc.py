@@ -9,8 +9,12 @@ from openpilot.common.swaglog import cloudlog
 # WARNING: imports outside of constants will not trigger a rebuild
 from openpilot.selfdrive.modeld.constants import index_function
 from openpilot.selfdrive.controls.radard import _LEAD_ACCEL_TAU
-# 引入 APM 模組
+
+# ==========================================
+# [APM 移植註記 1/3] 引入 APM 模組
+# 注意：請確認新版本中 apm.py 放置的路徑是否正確
 from openpilot.sunnypilot.selfdrive.controls.lib.apm import APM
+# ==========================================
 
 if __name__ == '__main__':  # generating code
   from openpilot.third_party.acados.acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver
@@ -33,7 +37,6 @@ PARAM_DIM = 6
 COST_E_DIM = 5
 COST_DIM = COST_E_DIM + 1
 CONSTR_DIM = 4
-# 讓系統更早開始關心與前車的距離，避免靠太近才驚覺要煞車。
 X_EGO_OBSTACLE_COST = 3.
 X_EGO_COST = 0.
 V_EGO_COST = 0.
@@ -205,7 +208,11 @@ class LongitudinalMpc:
     self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
     self.reset()
     self.source = LongitudinalPlanSource.cruise
-    self.apm = APM()  # 初始化 APM 模組
+
+    # ==========================================
+    # [APM 移植註記 2/3] 初始化 APM 模組
+    self.apm = APM()  
+    # ==========================================
 
   def reset(self):
     self.solver.reset()
@@ -294,6 +301,8 @@ class LongitudinalMpc:
   def update(self, radarstate, v_cruise, personality=log.LongitudinalPersonality.standard, a_cruise_min_override=None):
     v_ego = self.x0[1]
     
+    # ==========================================
+    # [APM 移植註記 3/3] 開始：動態駕駛風格判定
     # 擷取雷達/模型偵測到的前車（Lead One）數據提供給 APM 判定
     has_lead = radarstate.leadOne.status
     v_lead = radarstate.leadOne.vLead if has_lead else 0.0
@@ -303,7 +312,7 @@ class LongitudinalMpc:
     # 取得 relaxed 模式的基礎時間定義（預設為 1.75s）傳給 APM 做 TTC 比較的防禦門檻
     t_follow_relaxed = get_T_FOLLOW(log.LongitudinalPersonality.relaxed)
 
-    # 動態覆寫傳入的 personality
+    # 動態覆寫傳入的 personality (攔截並取代原本 UI 傳入的設定)
     personality = self.apm.get_personality(
       v_ego=v_ego,
       has_lead=has_lead,
@@ -313,6 +322,8 @@ class LongitudinalMpc:
       personality=personality,
       t_follow_relaxed=t_follow_relaxed
     )
+    # [APM 移植註記 3/3] 結束
+    # ==========================================
 
     # 依據更新後的 personality 設定動態跟車距離與權重
     t_follow = get_T_FOLLOW(personality)
