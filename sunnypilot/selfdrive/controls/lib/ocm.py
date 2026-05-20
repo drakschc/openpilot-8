@@ -5,9 +5,10 @@ from openpilot.common.swaglog import cloudlog
 # =========================================================
 # OCM 參數設定區
 # =========================================================
-OVERTAKE_THRESHOLD = 20.0 / 3.6  # 20 km/h - 進入超車滑行的門檻
-HYSTERESIS_OFFSET = 2.0 / 3.6    # 2 km/h - 保持滑行直到接近定速時才解除
-TTC_THRESHOLD = 2.25              # 秒 - 前方 2.5 秒內有車即停用
+# ++ 修改：將門檻降至 2.0，解除降至 1.0，確保只要稍微高於定速就能滑行 ++
+OVERTAKE_THRESHOLD = 2.0 / 3.6   # 2 km/h - 只要比定速快 2 公里，就允許進入滑行
+HYSTERESIS_OFFSET = 1.0 / 3.6    # 1 km/h - 保持滑行直到接近定速時才解除
+TTC_THRESHOLD = 2.0             # 秒 - 前方 2.0 秒內有車即停用
 
 # ++ 車速總開關參數 ++
 MIN_SPEED_ENABLE = 40.0 / 3.6    # 40 km/h - 車速大於此值打開總開關
@@ -94,6 +95,13 @@ class OCM:
   def _should_activate(self, user_ctrl_lon, v_ego, v_cruise, in_cooldown):
     # 坡度安全防護：如果是明顯下坡 (-3%以上)，重力會讓車速飆升，不允許純滑行
     if self.current_pitch < PITCH_DOWNHILL_THRESHOLD:
+        return False
+
+    # =========================================================
+    # ++ 新增：+20 上限防護 ++
+    # 如果當前車速大於「定速 + 20km/h」，強制不啟動滑行 (交給系統降速)
+    # =========================================================
+    if v_ego > (v_cruise + 20.0 / 3.6):
         return False
 
     # 狀態鎖定邏輯 (確保滑行不中斷)
