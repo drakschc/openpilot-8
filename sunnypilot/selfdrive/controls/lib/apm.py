@@ -21,17 +21,17 @@ from openpilot.common.params import Params
 from openpilot.common.realtime import DT_MDL
 
 # 速度門檻常數 (km/h 轉換為 m/s)
-APM_DEPARTURE_SPEED = 15 * 1000 / 3600   # 15 km/h：起步激烈模式上限
+APM_DEPARTURE_SPEED = 5 * 1000 / 3600   # 5 km/h：起步激烈模式上限
 
 # 場景 2 常數 (前車絕對速度、加速度)
 V_LEAD_RELAX_ENTER = 20 * 1000 / 3600    # 20 km/h：進入前車緩和模式的門檻，同時加入前車須減速狀態
-A_LEAD_RELAX_ENTER = -0.2                # -0.2 m/s^2：前車處於減速狀態的門檻
+A_LEAD_RELAX_ENTER = -0.1                # -0.1 m/s^2：前車處於減速狀態的門檻
 
 # 場景 3 常數 (與前車的相對速差)
-V_REL_RELAX_ENTER = 20 * 1000 / 3600     # 20 km/h：自車比前車快 20 km/h 時，進入緩和模式
+V_REL_RELAX_ENTER = 10 * 1000 / 3600     # 10 km/h：自車比前車快 10 km/h 時，進入緩和模式
 V_REL_RELAX_EXIT = 10 * 1000 / 3600      # 10 km/h：速差降至 10 km/h 以內 (速度差不多時)，解除緩和模式 (場景2與3共用)
 
-V_EGO_STOPPED = 0.5                      # 低於 0.5 m/s (約 1.8 km/h) 視為完全靜止
+V_EGO_STOPPED = 1.0                      # 低於 1.0 m/s (約 3.6 km/h) 視為完全靜止
 
 
 class APM:
@@ -42,6 +42,7 @@ class APM:
     # 用來記憶車輛狀態
     self.is_departing = False       # 場景 1：是否在起步加速階段
     self.is_relaxed_mode = False    # 場景 2：是否正處於前車慢速的緩和模式
+    self.is_scene2_standard = False # 場景 2：車距小於動態門檻時切換為標準模式
     self.is_approaching = False     # 場景 3：是否正快速接近慢車中 (速差過大)
     
     # 濾波平滑化狀態
@@ -83,14 +84,20 @@ class APM:
       
       v_rel = self.v_rel_smoothed
       
-      # 已經將最低距離門檻從 10.0 修改為 30.0
-      d_req = max(30.0, v_ego * t_follow_relaxed)
+      # 已經將最低距離門檻從 10.0 修改為 20.0
+      d_req = max(20.0, v_ego * t_follow_relaxed)
 
-      # 場景 2：前車絕對速度判斷 + 負加速判斷 + 車距大於動態門檻
-      if v_lead < V_LEAD_RELAX_ENTER and a_lead < A_LEAD_RELAX_ENTER and d_lead >= d_req:
-        self.is_relaxed_mode = True
+      # 場景 2：前車絕對速度判斷 + 負加速判斷
+      if v_lead < V_LEAD_RELAX_ENTER and a_lead < A_LEAD_RELAX_ENTER:
+        if d_lead >= d_req:
+          self.is_relaxed_mode = True
+          self.is_scene2_standard = False
+        else:
+          self.is_relaxed_mode = False
+          self.is_scene2_standard = True
       elif v_rel <= V_REL_RELAX_EXIT:
         self.is_relaxed_mode = False
+        self.is_scene2_standard = False
         
       # 場景 3：與前車相對速差判斷 + 車距大於動態門檻
       if v_rel >= V_REL_RELAX_ENTER and d_lead >= d_req:
@@ -100,12 +107,16 @@ class APM:
         
     else:
       self.is_relaxed_mode = False
+      self.is_scene2_standard = False
       self.is_approaching = False
       self.v_rel_smoothed = None  
 
     # --- 3. 決定最終輸出的模式 (優先級：場景 1 > 場景 2 > 場景 3) ---
     if self.is_departing and v_ego < APM_DEPARTURE_SPEED:
       return log.LongitudinalPersonality.aggressive
+
+    if self.is_scene2_standard:
+      return log.LongitudinalPersonality.standard
 
     if self.is_relaxed_mode:
       return log.LongitudinalPersonality.relaxed
