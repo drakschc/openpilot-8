@@ -40,8 +40,8 @@ MAX_DECEL_DECREASE_RATE = 1.0  # When releasing brake (m/s² per second)
 # ==============================================================================
 # 老司機模式專用設定 (Experienced Driver Mode)
 # ==============================================================================
-ED_CLASS1_TIME_LIMIT = 5.0  # Class 1: 提早滑行觸發的最遠動態車距 (預設 5 秒)
-ED_CLASS2_TIME_LIMIT = 3.0  # Class 2: 跟車微調介入的最遠動態車距 (預設 3 秒)
+ED_CLASS1_TIME_LIMIT = 3.0  # Class 1: 提早滑行觸發的最遠動態車距 (預設 5 秒)
+ED_CLASS2_TIME_LIMIT = 1.5  # Class 2: 跟車微調介入的最遠動態車距 (預設 3 秒)
 
 
 class AccelPersonalityController:
