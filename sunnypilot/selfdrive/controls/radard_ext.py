@@ -11,72 +11,79 @@ from opendbc.car import structs
 from openpilot.selfdrive.controls import radard
 
 # 2. 正常引入我們需要的元件與原始函數
-from openpilot.selfdrive.controls.radard import KalmanParams, Track, RadarD, match_vision_to_track, get_RadarState_from_vision, get_custom_yrel, RADAR_TO_CAMERA
+from openpilot.selfdrive.controls.radard import (
+    KalmanParams, Track, RadarD, match_vision_to_track,
+    get_RadarState_from_vision, get_custom_yrel, RADAR_TO_CAMERA
+)
 
 # 3. 引入 cloudlog 用於記錄我們自訂的提早鎖定事件
 from openpilot.common.swaglog import cloudlog
 
 # ==============================================================================
-# 提早鎖定 (Early Lock) 擴充模組參數設定 - 高階記憶防護版
+# 提早鎖定 (Early Lock) 擴充模組參數設定
 # ==============================================================================
 # 📐 階段一與二：空間遲滯與物理打分邊界
-LANE_WIDTH_FALLBACK = 1.5  # 預測車道基準單側半寬 (m)，無實體線時使用
-LANE_HYSTERESIS_MARGIN = 0.5  # 邊界外的遲滯容錯預度 (m)，完美消滅邊緣抽搐閃爍
-FUZZY_BOUNDS = [0.5, 1.5]  # 物理誤差 (m 或 m/s): 0.5 以內給滿分 1.0，大於 1.5 總分歸零
+LANE_WIDTH_FALLBACK = 1.5           # 預測車道基準單側半寬 (m)，無實體線時使用
+LANE_HYSTERESIS_MARGIN = 0.5        # 邊界外的遲滯容錯預度 (m)，完美消滅邊緣抽搐閃爍
+FUZZY_BOUNDS = [0.5, 1.5]           # 物理誤差 (m 或 m/s): 0.5 以內給滿分 1.0，大於 1.5 總分歸零
 
 # 🧠 階段三：EMA 基礎學習率設定
-ALPHA_BASE = 0.2  # 常規上升學習率 (確保真車在 0.2~0.4 秒內穩定鎖定)
-ALPHA_DOWN = 0.1  # 常規下降與短路過濾時的衰減學習率 (極速踢出雜訊)
+ALPHA_BASE = 0.2                    # 常規上升學習率 (確保真車在 0.2~0.4 秒內穩定鎖定)
+ALPHA_DOWN = 0.1                    # 常規下降與短路過濾時的衰減學習率 (極速踢出雜訊)
 
 # 🔥 階段三：威脅乘數融合矩陣 (限制最高 1.2 倍，保留空間讓 EMA 平滑爬升)
-BRAKE_THRES_RANGE = [-3.0, -1.2]  # 急煞觸發區間 (m/s²)
-MULT_RANGE = [1.2, 1.0]  # 對應威脅倍率 (從最高 1.2 緩降至 1.0)
-CUTIN_DIST_LIMIT = 40.0  # 評估切入威脅的最大縱向有效距離 (m)
-DYNAMIC_SPEED_PCT = 0.2  # 動態相對速度閥值比例 (以當前車速的 20% 為基準)
+BRAKE_THRES_RANGE = [-3.0, -1.2]    # 急煞觸發區間 (m/s²)
+MULT_RANGE = [1.2, 1.0]             # 對應威脅倍率 (從最高 1.2 緩降至 1.0)
+CUTIN_DIST_LIMIT = 40.0             # 評估切入威脅的最大縱向有效距離 (m)
+DYNAMIC_SPEED_PCT = 0.2             # 動態相對速度閥值比例 (以當前車速的 20% 為基準)
 
 # 🐢 階段四：慢速與靜止防護網 (基於電腦視覺物理極限的反轉門檻)
-CAM_PROB_SPEED_RANGE = [10.0, 25.0]  # 動態相機門檻車速區間 (約 36 ~ 90 km/h)
-CAM_PROB_RANGE = [0.5, 0.3]  # 動態相機審查門檻 (市區低速要求 0.5 嚴格把關，高速放寬至 0.3)
-STATIC_EMA_CAP = 0.6  # 目標未達審查門檻時，EMA 絕對不可超越的天花板
+CAM_PROB_SPEED_RANGE = [10.0, 25.0] # 動態相機門檻車速區間 (約 36 ~ 90 km/h)
+CAM_PROB_RANGE = [0.5, 0.3]         # 動態相機審查門檻 (市區低速要求 0.5 嚴格把關，高速放寬至 0.3)
+STATIC_EMA_CAP = 0.6                # 目標未達審查門檻時，EMA 絕對不可超越的天花板
 
 # 🎛️ 階段五：全局反向插值映射
-EMA_VAL_RANGE = [0.4, 0.8]  # 本地 EMA 信心度 X 軸 (0.4 起跳，0.8 達峰值)
-PROB_THRES_RANGE = [0.5, 0.3]  # 映射出對應的「視覺提早放行門檻」 Y 軸 (最高可強勢拉低至 0.3)
+EMA_VAL_RANGE = [0.4, 0.8]          # 本地 EMA 信心度 X 軸 (0.4 起跳，0.8 達峰值)
+PROB_THRES_RANGE = [0.5, 0.3]       # 映射出對應的「視覺提早放行門檻」 Y 軸 (最高可強勢拉低至 0.3)
 
 # 🛡️ 階段六：狀態機記憶與抗斷流防護 (防閃爍機制)
-RELEASE_FRAMES = 5  # 目標短暫丟失或出界時的 EMA 續命凍結幀數 (約 0.25 秒)
-SELECT_HOLDOVER_FRAMES = 3  # 雷達硬體斷流時，強制維持上一幀鎖定的幀數 (約 0.15 秒)
+RELEASE_FRAMES = 5                  # 目標短暫丟失或出界時的 EMA 續命凍結幀數 (約 0.25 秒)
+SELECT_HOLDOVER_FRAMES = 3          # 雷達硬體斷流時，強制維持上一幀鎖定的幀數 (約 0.15 秒)
 
 # ⚖️ 階段七：視覺加速度雙重驗證阻尼 (防幽靈急煞)
-MODEL_TAU_MIN_PROB = 0.5  # 啟動驗證的最低視覺機率
-MODEL_TAU_BRAKE_A = -0.5  # 啟動驗證的最低急煞門檻 (m/s²)
-MODEL_TAU_SUSTAINED = 0.5  # 視覺確認急煞持續 (給予小阻尼，讓底層全力煞車)
-MODEL_TAU_SPURIOUS = 3.0  # 視覺預測即將加速 (給予大阻尼，快速化解幽靈急煞訊號)
+MODEL_TAU_MIN_PROB = 0.5            # 啟動驗證的最低視覺機率
+MODEL_TAU_BRAKE_A = -0.5            # 啟動驗證的最低急煞門檻 (m/s²)
+MODEL_TAU_SUSTAINED = 0.5           # 視覺確認急煞持續 (給予小阻尼，讓底層全力煞車)
+MODEL_TAU_SPURIOUS = 3.0            # 視覺預測即將加速 (給予大阻尼，快速化解幽靈急煞訊號)
 
 # ==============================================================================
 # 全域快取：用於儲存上一幀的鎖定目標，修補硬體層級的斷流
 # ==============================================================================
-_LEAD_STATE_CACHE = {0: {'track': None, 'absent': 0}, 1: {'track': None, 'absent': 0}}
+_LEAD_STATE_CACHE = {
+    0: {'track': None, 'absent': 0},
+    1: {'track': None, 'absent': 0}
+}
 
 
-def get_model_lead_tau(lead_msg) -> float | None:
+def get_model_lead_tau(lead_msg, lead_prob: float) -> float | None:
   """
   讀取相機模型對未來加速度的預測，進行交叉驗證。
   當雷達判定急煞，但相機認為即將加速時，賦予極大阻尼，化解潛在危險。
+  全面改用外部傳入的平滑化 lead_prob 取代 lead_msg.prob。
   """
-  if getattr(lead_msg, 'prob', 0) < MODEL_TAU_MIN_PROB or len(lead_msg.a) < 2:
+  if lead_prob < MODEL_TAU_MIN_PROB or len(lead_msg.a) < 2:
     return None
-
+  
   a0 = float(lead_msg.a[0])
   a1 = float(lead_msg.a[1])
-
+  
   if a0 > MODEL_TAU_BRAKE_A:
     return None
   if a1 < 0.5 * a0:
     return MODEL_TAU_SUSTAINED
   if a1 > 0.1 * a0:
     return MODEL_TAU_SPURIOUS
-
+  
   return None
 
 
@@ -131,7 +138,7 @@ class TrackSP(Track):
     """
     brake_mult = float(np.interp(self.aLeadK, BRAKE_THRES_RANGE, MULT_RANGE))
     cutin_mult = 1.0
-
+    
     if self.dRel < CUTIN_DIST_LIMIT and abs(self.yRel) > 1.0:
       v_limit = max(1.0, DYNAMIC_SPEED_PCT * v_ego)
       cutin_mult = float(np.interp(self.vRel, [-v_limit, v_limit], MULT_RANGE))
@@ -153,9 +160,10 @@ class TrackSP(Track):
 
     return current_ema
 
-  def process_track_logic(self, lead_idx: int, lead_msg: capnp._DynamicStructReader, v_ego: float):
+  def process_track_logic(self, lead_idx: int, lead_msg: capnp._DynamicStructReader, v_ego: float, lead_prob: float):
     """
     【主控管線：包含剪枝、緩衝續命與打分更新】
+    新增 lead_prob 參數，與原廠非對稱濾波機率同步。
     """
     offset_vision_dist = lead_msg.x[0] - RADAR_TO_CAMERA
     vision_y = -lead_msg.y[0]
@@ -163,7 +171,7 @@ class TrackSP(Track):
 
     # 🌪️ 漏斗第一關：初步判斷是否為無效雜訊或嚴重出界
     is_invalid = not self.measured or abs(self.yRel - vision_y) > (LANE_WIDTH_FALLBACK + LANE_HYSTERESIS_MARGIN)
-
+    
     fuzzy_score = 0.0
     if not is_invalid:
       # 執行精細幾何邊界審查與三維物理打分
@@ -189,9 +197,9 @@ class TrackSP(Track):
     final_alpha_up = self._calculate_threat_multipliers(v_ego)
     target_ema = fuzzy_score
     alpha = final_alpha_up if fuzzy_score > 0.5 else ALPHA_DOWN
-
+    
     new_ema = alpha * target_ema + (1 - alpha) * self.ema_confidence[lead_idx]
-    new_ema = self._apply_slow_protection(v_ego, lead_msg.prob, new_ema)
+    new_ema = self._apply_slow_protection(v_ego, lead_prob, new_ema)
 
     self.ema_confidence[lead_idx] = new_ema
 
@@ -202,19 +210,21 @@ def get_lead_ext(
   tracks: dict[int, TrackSP],
   lead_msg: capnp._DynamicStructReader,
   model_v_ego: float,
+  lead_prob: float,
   CP: structs.CarParams,
   CP_SP: structs.CarParamsSP,
   low_speed_override: bool = True,
 ) -> dict[str, Any]:
   """
   擴充的前車評估函數：導入多階段過濾、反向動態門檻、硬體斷流記憶修補。
+  完美對齊新版原廠簽名，接收並使用 lead_prob 作為判斷基準。
   """
   lead_idx = 0 if low_speed_override else 1
   max_ema_confidence = 0.0
 
   if ready:
     for track in tracks.values():
-      track.process_track_logic(lead_idx, lead_msg, v_ego)
+      track.process_track_logic(lead_idx, lead_msg, v_ego, lead_prob)
 
   # 🛡️ 提取乾淨名單：排除徹底出界與分數歸零的目標
   valid_tracks = {k: v for k, v in tracks.items() if not v.is_out_of_lane and v.ema_confidence[lead_idx] > 0.0}
@@ -227,7 +237,7 @@ def get_lead_ext(
 
   # 判斷融合
   selected_track = None
-  if len(valid_tracks) > 0 and ready and lead_msg.prob > current_prob_thres:
+  if len(valid_tracks) > 0 and ready and lead_prob > current_prob_thres:
     selected_track = match_vision_to_track(v_ego, lead_msg, valid_tracks)
 
   # ==============================================================================
@@ -249,19 +259,24 @@ def get_lead_ext(
   # 封裝輸出數據
   lead_dict = {'status': False}
   if selected_track is not None:
-    lead_dict = selected_track.get_RadarState(lead_msg.prob)
+    # 傳入最新的平滑化機率給原廠數據包
+    lead_dict = selected_track.get_RadarState(lead_prob)
     lead_dict = get_custom_yrel(CP, CP_SP, lead_dict, lead_msg)
 
     # ⚖️ 視覺加速度雙重驗證阻尼：防止短暫雜訊引發幽靈急煞
-    model_tau = get_model_lead_tau(lead_msg)
+    model_tau = get_model_lead_tau(lead_msg, lead_prob)
     if model_tau is not None:
       lead_dict['aLeadTau'] = model_tau
 
-    if current_prob_thres < 0.5 and (0.5 >= lead_msg.prob > current_prob_thres):
-      cloudlog.debug(f"[RadarDSP_EarlyLock] 提早鎖定/續命成功！目標 {lead_idx} | 相機機率: {lead_msg.prob:.2f} (動態門檻: {current_prob_thres:.2f})")
+    if current_prob_thres < 0.5 and (0.5 >= lead_prob > current_prob_thres):
+      cloudlog.debug(
+        f"[RadarDSP_EarlyLock] 提早鎖定/續命成功！目標 {lead_idx} | "
+        f"相機機率: {lead_prob:.2f} (動態門檻: {current_prob_thres:.2f})"
+      )
 
-  elif (selected_track is None) and ready and (lead_msg.prob > current_prob_thres):
-    lead_dict = get_RadarState_from_vision(lead_msg, v_ego, model_v_ego)
+  elif (selected_track is None) and ready and (lead_prob > current_prob_thres):
+    # 對齊最新版，補齊缺失的 lead_prob 參數
+    lead_dict = get_RadarState_from_vision(lead_msg, v_ego, model_v_ego, lead_prob)
 
   # 🛡️ 原廠底線救援 (極低速專屬防護)
   if low_speed_override:
@@ -285,7 +300,6 @@ class RadarDSP(RadarD):
   """
   繼承自 RadarD。無需改寫主迴圈，透過 Monkey Patching 即可自動套用擴充邏輯。
   """
-
   def __init__(self, CP: structs.CarParams, CP_SP: structs.CarParams, delay: float = 0.0):
     super().__init__(CP, CP_SP, delay)
 
