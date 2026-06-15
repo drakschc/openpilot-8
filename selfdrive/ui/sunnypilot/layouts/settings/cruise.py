@@ -180,7 +180,7 @@ class CruiseLayout(Widget):
           self.icbm_toggle.set_description(new_desc)
           self.icbm_toggle.show_description(True)
 
-      # 確保 SCC-V 與 SCC-M 功能獨立開啟
+      # 確保 SCC-V 與 SCC-M 功能在取得車輛參數時獨立開啟
       self.scc_v_toggle.action_item.set_enabled(True)
       self.scc_m_toggle.action_item.set_enabled(True)
 
@@ -207,6 +207,10 @@ class CruiseLayout(Widget):
       has_icbm = has_long = False
       self.icbm_toggle.action_item.set_enabled(False)
       self.icbm_toggle.set_description(tr(ONROAD_ONLY_DESCRIPTION))
+      
+      # 確保 SCC-V 與 SCC-M 功能在設備尚未校正或車輛未讀取時，依然強制保持開關啟用
+      self.scc_v_toggle.action_item.set_enabled(True)
+      self.scc_m_toggle.action_item.set_enabled(True)
 
     show_custom_acc_desc = False
 
