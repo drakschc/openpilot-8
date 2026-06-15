@@ -180,17 +180,18 @@ class CruiseLayout(Widget):
           self.icbm_toggle.set_description(new_desc)
           self.icbm_toggle.show_description(True)
 
+      # 確保 SCC-V 與 SCC-M 功能獨立開啟
+      self.scc_v_toggle.action_item.set_enabled(True)
+      self.scc_m_toggle.action_item.set_enabled(True)
+
       if has_long or has_icbm:
         self.custom_acc_toggle.action_item.set_enabled(((has_long and not ui_state.CP.pcmCruise) or has_icbm) and ui_state.is_offroad())
         self.dec_toggle.action_item.set_enabled(has_long)
-        self.scc_v_toggle.action_item.set_enabled(True)
-        self.scc_m_toggle.action_item.set_enabled(True)
         self.ocm_toggle.action_item.set_enabled(has_long)
         self.dp_apm_toggle.action_item.set_enabled(has_long)
         self.dp_accel_personality_en_toggle.action_item.set_enabled(has_long)
       else:
         ui_state.params.remove("CustomAccIncrementsEnabled")
-        ui_state.params.remove("SmartCruiseControlMap")
         ui_state.params.remove("dp_lon_ocm") 
         ui_state.params.remove("dp_lon_apm")
         ui_state.params.remove("AccelPersonalityEnabled")
@@ -198,8 +199,6 @@ class CruiseLayout(Widget):
         
         self.custom_acc_toggle.action_item.set_enabled(False)
         self.dec_toggle.action_item.set_enabled(False)
-        self.scc_v_toggle.action_item.set_enabled(False)
-        self.scc_m_toggle.action_item.set_enabled(False)
         self.ocm_toggle.action_item.set_enabled(False)
         self.dp_apm_toggle.action_item.set_enabled(False)
         self.dp_accel_personality_en_toggle.action_item.set_enabled(False)
