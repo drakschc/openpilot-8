@@ -23,15 +23,8 @@ from openpilot.common.realtime import DT_MDL
 # 速度門檻常數 (km/h 轉換為 m/s)
 APM_DEPARTURE_SPEED = 5 * 1000 / 3600   # 5 km/h：起步激烈模式上限
 
-# 場景 2 常數 (前車絕對速度、加速度)
-V_LEAD_RELAX_ENTER = 20 * 1000 / 3600    # 20 km/h：進入前車緩和模式的門檻，同時加入前車須減速狀態
-A_LEAD_RELAX_ENTER = -0.1                # -0.1 m/s^2：前車處於減速狀態的門檻
-
-# 場景 3 常數 (與前車的相對速差)
-V_REL_RELAX_ENTER = 10 * 1000 / 3600     # 10 km/h：自車比前車快 10 km/h 時，進入緩和模式
-V_REL_RELAX_EXIT = 10 * 1000 / 3600      # 10 km/h：速差降至 10 km/h 以內 (速度差不多時)，解除緩和模式 (場景2與3共用)
-
-V_EGO_STOPPED = 1.0                      # 低於 1.0 m/s (約 3.6 km/h) 視為完全靜止
+# 完全靜止門檻
+V_EGO_STANDSTILL = 0.01                  # 低於 0.01 m/s 視為完全靜止，才準備起步
 
 
 class APM:
@@ -39,14 +32,8 @@ class APM:
     self.params = Params()
     self.frame = 0
     
-    # 用來記憶車輛狀態
-    self.is_departing = False       # 場景 1：是否在起步加速階段
-    self.is_relaxed_mode = False    # 場景 2：是否正處於前車慢速的緩和模式
-    self.is_scene2_standard = False # 場景 2：車距小於動態門檻時切換為標準模式
-    self.is_approaching = False     # 場景 3：是否正快速接近慢車中 (速差過大)
-    
-    # 濾波平滑化狀態
-    self.v_rel_smoothed = None      # 用來儲存過濾/平滑化後的相對速差
+    # 用來記憶車輛狀態 (僅保留起步狀態)
+    self.is_departing = False       
 
     # 初始化開關狀態
     self._enabled = self.params.get_bool("dp_lon_apm")
@@ -66,62 +53,19 @@ class APM:
     if not self._enabled:
       return personality
       
-    # --- 1. 起步狀態更新 ---
-    if v_ego < V_EGO_STOPPED:
+    # --- 1. 起步狀態更新 (唯一保留的場景) ---
+    # 利用狀態機的遲滯特性。減速過程中 v_ego 在 0.01 ~ 1.38 m/s 之間時，
+    # 既不會觸發 is_departing = True，也不會強制設為 False，而是保留原本的狀態。
+    if v_ego < V_EGO_STANDSTILL:
       self.is_departing = True
     elif v_ego >= APM_DEPARTURE_SPEED:
       self.is_departing = False
 
-    # --- 2. 判斷前車狀況 ---
-    if has_lead:
-      v_rel_raw = v_ego - v_lead
-
-      # --- 低通濾波處理 (Exponential Moving Average) ---
-      if self.v_rel_smoothed is None:
-        self.v_rel_smoothed = v_rel_raw
-      else:
-        self.v_rel_smoothed = self.v_rel_smoothed * 0.90 + v_rel_raw * 0.10
-      
-      v_rel = self.v_rel_smoothed
-      
-      # 已經將最低距離門檻從 10.0 修改為 20.0
-      d_req = max(20.0, v_ego * t_follow_relaxed)
-
-      # 場景 2：前車絕對速度判斷 + 負加速判斷
-      if v_lead < V_LEAD_RELAX_ENTER and a_lead < A_LEAD_RELAX_ENTER:
-        if d_lead >= d_req:
-          self.is_relaxed_mode = True
-          self.is_scene2_standard = False
-        else:
-          self.is_relaxed_mode = False
-          self.is_scene2_standard = True
-      elif v_rel <= V_REL_RELAX_EXIT:
-        self.is_relaxed_mode = False
-        self.is_scene2_standard = False
-        
-      # 場景 3：與前車相對速差判斷 + 車距大於動態門檻
-      if v_rel >= V_REL_RELAX_ENTER and d_lead >= d_req:
-        self.is_approaching = True
-      elif v_rel <= V_REL_RELAX_EXIT:
-        self.is_approaching = False
-        
-    else:
-      self.is_relaxed_mode = False
-      self.is_scene2_standard = False
-      self.is_approaching = False
-      self.v_rel_smoothed = None  
-
-    # --- 3. 決定最終輸出的模式 (優先級：場景 1 > 場景 2 > 場景 3) ---
+    # --- 2. 決定最終輸出的模式 ---
+    # 當處於起步狀態且車速低於 5 km/h 時，強制輸出積極模式，確保輕快起步
     if self.is_departing and v_ego < APM_DEPARTURE_SPEED:
       return log.LongitudinalPersonality.aggressive
 
-    if self.is_scene2_standard:
-      return log.LongitudinalPersonality.standard
-
-    if self.is_relaxed_mode:
-      return log.LongitudinalPersonality.relaxed
-
-    if self.is_approaching:
-      return log.LongitudinalPersonality.relaxed
-
+    # 只要不是在起步階段，一律原封不動回傳系統設定的性格 (通常是 Standard)，
+    # 將行進間與煞停的減速邏輯完全交給 accel_controller 處理。
     return personality
