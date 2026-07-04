@@ -231,4 +231,255 @@ class HudRenderer(Widget):
     if 0 < self.tdx_speed <= 70:
       speed_text = f"前方車速: {self.tdx_speed} km/h"
       tdx_speed_font_size = 90
-      speed_size = measure_text
+      speed_size = measure_text_cached(self._font_semi_bold, speed_text, tdx_speed_font_size)
+      
+      # 恢復原本的固定 Y 軸位置
+      top_y = rect.y + UI_CONFIG.header_height + 25 
+      speed_x = rect.x + rect.width / 2 - speed_size.x / 2
+      
+      bg_rect = rl.Rectangle(speed_x - bg_padding_x, top_y - bg_padding_y, speed_size.x + bg_padding_x * 2, speed_size.y + bg_padding_y * 2)
+      rl.draw_rectangle_rounded(bg_rect, 0.2, 10, rl.Color(0, 0, 0, 160))
+      
+      rl.draw_text_ex(self._font_semi_bold, speed_text, rl.Vector2(speed_x, top_y), tdx_speed_font_size, 0, speed_color)
+
+    # ==========================================
+    # 第二行: 事件 (貼齊下方 Performance 列，單行跑馬燈)
+    # ==========================================
+    if self.tdx_event_active and self.tdx_event_desc:
+      # 計算 Performance 列的位置以決定事件區底部
+      perf_bar_height = PERF_FONT_SIZE + 2 * PERF_PADDING
+      perf_bar_y = rect.y + rect.height - perf_bar_height - PERF_MARGIN_BOTTOM
+      
+      tdx_event_font_size = 75
+      max_text_width = rect.width - 200 
+      
+      text = self.tdx_event_desc
+      # 計算完整單行文字的寬高
+      text_width = measure_text_cached(self._font_semi_bold, text, tdx_event_font_size).x
+      line_height = measure_text_cached(self._font_semi_bold, text, tdx_event_font_size).y
+      
+      # 決定背景顯示寬度 (若文字過長，則限制為最大寬度)
+      display_width = min(text_width, max_text_width)
+      
+      # 計算背景高度，並向上推算起始位置
+      event_bg_height = line_height + bg_padding_y * 2
+      event_y = perf_bar_y - event_bg_height - 15  # 留 15px 間距避免太黏
+      
+      event_x = rect.x + rect.width / 2 - display_width / 2
+      event_bg_rect = rl.Rectangle(
+          event_x - bg_padding_x, 
+          event_y, 
+          display_width + bg_padding_x * 2, 
+          event_bg_height
+      )
+      
+      # 呼吸燈閃爍警告背景
+      alpha = 130 + int(50 * math.sin(time.time() * 5)) 
+      rl.draw_rectangle_rounded(event_bg_rect, 0.2, 10, rl.Color(220, 50, 50, alpha))
+      
+      draw_y = event_y + bg_padding_y
+      
+      # 若文字長度超過最大寬度，啟用跑馬燈 (平滑來回滾動)
+      if text_width > max_text_width:
+        # 開啟裁剪模式，避免文字繪製超出背景框的範圍
+        rl.begin_scissor_mode(int(event_bg_rect.x), int(event_bg_rect.y), int(event_bg_rect.width), int(event_bg_rect.height))
+        
+        extra_width = text_width - max_text_width
+        scroll_speed = 80.0     # 跑馬燈捲動速度 (像素/秒)
+        scroll_duration = extra_width / scroll_speed
+        pause_duration = 2.0    # 在兩側邊界停留的時間 (秒)
+        
+        # 計算目前週期進度
+        cycle_time = time.time() % ((scroll_duration + pause_duration) * 2)
+
+        # 四階段: 左停 -> 往左捲 -> 右停 -> 往右捲回
+        if cycle_time < pause_duration:
+          offset = 0.0
+        elif cycle_time < pause_duration + scroll_duration:
+          progress = (cycle_time - pause_duration) / scroll_duration
+          offset = extra_width * progress
+        elif cycle_time < pause_duration * 2 + scroll_duration:
+          offset = extra_width
+        else:
+          progress = (cycle_time - pause_duration * 2 - scroll_duration) / scroll_duration
+          offset = extra_width * (1 - progress)
+
+        draw_x = event_x - offset
+        rl.draw_text_ex(self._font_semi_bold, text, rl.Vector2(draw_x, draw_y), tdx_event_font_size, 0, rl.WHITE)
+
+        rl.end_scissor_mode()
+      else:
+        # 文字沒超長 -> 直接單行置中顯示
+        rl.draw_text_ex(self._font_semi_bold, text, rl.Vector2(event_x, draw_y), tdx_event_font_size, 0, rl.WHITE)
+
+  def _draw_set_speed(self, rect: rl.Rectangle) -> None:
+    set_speed_width = UI_CONFIG.set_speed_width_metric if ui_state.is_metric else UI_CONFIG.set_speed_width_imperial
+    x = rect.x + 60 + (UI_CONFIG.set_speed_width_imperial - set_speed_width) // 2
+    y = rect.y + 45
+
+    set_speed_rect = rl.Rectangle(x, y, set_speed_width, UI_CONFIG.set_speed_height)
+    rl.draw_rectangle_rounded(set_speed_rect, 0.35, 10, COLORS.BLACK_TRANSLUCENT)
+    rl.draw_rectangle_rounded_lines_ex(set_speed_rect, 0.35, 10, 6, COLORS.BORDER_TRANSLUCENT)
+
+    max_color = COLORS.GREY
+    set_speed_color = COLORS.DARK_GREY
+    if self.is_cruise_set:
+      set_speed_color = COLORS.WHITE
+      if ui_state.status == UIStatus.ENGAGED:
+        max_color = COLORS.ENGAGED
+      elif ui_state.status == UIStatus.DISENGAGED:
+        max_color = COLORS.DISENGAGED
+      elif ui_state.status == UIStatus.OVERRIDE:
+        max_color = COLORS.OVERRIDE
+
+    max_text = tr("MAX")
+    max_text_width = measure_text_cached(self._font_semi_bold, max_text, FONT_SIZES.max_speed).x
+    rl.draw_text_ex(
+      self._font_semi_bold,
+      max_text,
+      rl.Vector2(x + (set_speed_width - max_text_width) / 2, y + 27),
+      FONT_SIZES.max_speed,
+      0,
+      max_color,
+    )
+
+    set_speed_text = CRUISE_DISABLED_CHAR if not self.is_cruise_set else str(round(self.set_speed))
+    speed_text_width = measure_text_cached(self._font_bold, set_speed_text, FONT_SIZES.set_speed).x
+    rl.draw_text_ex(
+      self._font_bold,
+      set_speed_text,
+      rl.Vector2(x + (set_speed_width - speed_text_width) / 2, y + 77),
+      FONT_SIZES.set_speed,
+      0,
+      set_speed_color,
+    )
+
+  def _draw_current_speed(self, rect: rl.Rectangle) -> None:
+    speed_text = str(round(self.speed))
+    speed_text_size = measure_text_cached(self._font_bold, speed_text, FONT_SIZES.current_speed)
+    speed_pos = rl.Vector2(rect.x + rect.width / 2 - speed_text_size.x / 2, 180 - speed_text_size.y / 2)
+    rl.draw_text_ex(self._font_bold, speed_text, speed_pos, FONT_SIZES.current_speed, 0, COLORS.WHITE)
+
+    unit_text = tr("km/h") if ui_state.is_metric else tr("mph")
+    unit_text_size = measure_text_cached(self._font_medium, unit_text, FONT_SIZES.speed_unit)
+    unit_pos = rl.Vector2(rect.x + rect.width / 2 - unit_text_size.x / 2, 290 - unit_text_size.y / 2)
+    rl.draw_text_ex(self._font_medium, unit_text, unit_pos, FONT_SIZES.speed_unit, 0, COLORS.WHITE_TRANSLUCENT)
+
+  def _draw_performance_info(self, rect: rl.Rectangle) -> None:
+    if rect.width <= 0 or rect.height <= 0:
+      return
+
+    stats = self._get_perf_stats()
+    control_text = self._get_control_state_text()
+
+    lead_dist = self.lead_dist
+    cpu_temp = stats.get("cpu_temp", "-")
+    mem_usage = stats.get("mem_usage", "-")
+    disk_free = stats.get("disk_free", "-")
+
+    items = [
+      f"{tr('Lead Dist')} {lead_dist}",
+      f"{tr('CPU Temp')} {cpu_temp}",
+      f"{tr('Memory')} {mem_usage}",
+      f"{tr('Disk Free')} {disk_free}",
+      f"{control_text}",
+    ]
+
+    measurements = [measure_text_cached(self._perf_font, text, PERF_FONT_SIZE) for text in items]
+
+    bar_width = max(rect.width - 20, 0)
+    bar_height = PERF_FONT_SIZE + 2 * PERF_PADDING
+
+    bar_x = rect.x + (rect.width - bar_width) / 2
+    bar_y = rect.y + rect.height - bar_height - PERF_MARGIN_BOTTOM
+    minimum_y = rect.y + PERF_MARGIN_BOTTOM
+    if bar_y < minimum_y:
+      bar_y = minimum_y
+
+    rl.draw_rectangle_rounded(
+      rl.Rectangle(bar_x, bar_y, bar_width, bar_height),
+      0.2,
+      8,
+      PERF_BG_COLOR,
+    )
+
+    slot_width = bar_width / len(items)
+    text_y = bar_y + PERF_PADDING
+
+    for i, (text, measurement) in enumerate(zip(items, measurements)):
+      cursor_x = bar_x + (i * slot_width) + (slot_width - measurement.x) / 2
+      text_color = rl.WHITE
+      if i == 0 and self.lead_dist != "-" and self.lead_dist_raw < 15.0:
+        text_color = rl.Color(255, 188, 0, 200)
+      elif i == 4 and ui_state.status != UIStatus.ENGAGED:
+        text_color = rl.YELLOW
+
+      rl.draw_text_ex(self._perf_font, text, rl.Vector2(cursor_x, text_y), PERF_FONT_SIZE, 0, text_color)
+
+  def _get_control_state_text(self) -> str:
+    status = ui_state.status
+    if status == UIStatus.ENGAGED:
+      return tr("Auto control")
+    return tr("Manual control")
+
+  def _get_perf_stats(self) -> dict[str, str]:
+    with self._perf_lock:
+      return dict(self._perf_stats)
+
+  def _perf_update_loop(self) -> None:
+    time.sleep(10)
+    while self._perf_running:
+      stats = {
+        "cpu_temp": self._read_cpu_temp(),
+        "mem_usage": self._read_mem_usage(),
+        "disk_free": self._read_disk_free(),
+      }
+      with self._perf_lock:
+        self._perf_stats.update(stats)
+      for _ in range(10):
+        if not self._perf_running:
+          return
+        time.sleep(0.1)
+
+  @staticmethod
+  def _read_cpu_temp() -> str:
+    path = "/sys/class/thermal/thermal_zone0/temp"
+    try:
+      with open(path) as f:
+        temp_c = int(f.read().strip()) / 1000.0
+        return f"{temp_c:.0f}°C"
+    except Exception:
+      return "-"
+
+  @staticmethod
+  def _read_mem_usage() -> str:
+    try:
+      total_kb = None
+      available_kb = None
+      with open("/proc/meminfo") as f:
+        for line in f:
+          if line.startswith("MemTotal:"):
+            total_kb = float(line.split()[1])
+          elif line.startswith("MemAvailable:"):
+            available_kb = float(line.split()[1])
+          if total_kb is not None and available_kb is not None:
+            break
+      if total_kb and available_kb:
+        used_pct = (total_kb - available_kb) / total_kb * 100.0
+        used_pct = min(max(used_pct, 0.0), 100.0)
+        return f"{used_pct:.0f}%"
+    except Exception:
+      pass
+    return "-"
+
+  @staticmethod
+  def _read_disk_free() -> str:
+    try:
+      usage = shutil.disk_usage("/data")
+      free_gb = usage.free / (1024 ** 3)
+      if free_gb >= 1.0:
+        return f"{free_gb:.1f}G" 
+      free_mb = usage.free / (1024 ** 2)
+      return f"{free_mb:.0f}MB"  
+    except Exception:
+      return "-"
