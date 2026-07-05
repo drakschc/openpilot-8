@@ -1,8 +1,8 @@
 settings:
   - key: dp_lane_turn_desire
     type: toggle_item
-    title: "啟用低速轉彎輔助 (Lane Turn Desire)"
-    description: "當車速低於設定值且打方向燈時，車輛將會在最近的可行駛路徑上自動規劃轉彎。這可避免（如停紅燈時）車輛規劃錯誤的轉彎方向。"
+    title: "啟用低速轉彎輔助 (LTD)"
+    description: "當車速低於設定值且打方向燈時，車輛將會在最近的可行駛路徑上自動規劃轉彎。這可避免（如停紅燈時）車輛規劃錯誤的轉彎方向。來自SunnyPilot"
     category: "Lateral"
     flags: PERSISTENT
     param_type: BOOL
