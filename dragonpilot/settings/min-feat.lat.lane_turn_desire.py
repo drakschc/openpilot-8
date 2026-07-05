@@ -13,7 +13,7 @@ ITEMS = [
     "on_change": [{
       "target": "dp_lane_turn_value",
       "action": "set_visible",
-      "condition": "value"
+      "condition": "value == '1'"  # 修改此處
     }]
   },
   {
@@ -31,7 +31,7 @@ ITEMS = [
     "suffix": lambda: tr(" km/h"),
     "initially_visible_by": {
       "param": "dp_lane_turn_desire",
-      "condition": "value == True",
+      "condition": "value == '1'", # 修改此處
       "default": 0
     }
   },
