@@ -1553,11 +1553,12 @@ msgstr "前車距離"
 
 msgid "殊放話交阻斷施零一二三四五六七八九十百千萬公尺里段巷弄號街大中小型長短重嚴度量況局標誌網收費站休息服務東西南北上下左右內外側前後雙向匝交系統主端市區縣鄉鎮村國省台臺路道線快橋高架基隆新桃竹苗彰投嘉屏宜花澎金馬雄福爾摩沙蔣渭水支聯絡機濱事件故禍肇拋錨工維護管制封閉壅塞回堵多緩慢順暢異警示注意提醒通安全危險保持距離停止禁速限最低超照相雷達測取締降減行掉落散物障礙動犬狗貓豬牛羊砂石車輪皮鐵件塑膠木材樹枝貨垃圾排除理天候氣象晴雲陰雨陣豪積淹濃霧起霾強風坍方土流視不佳濕滑結冰特報災客拖板遊覽腳踏種救消防備發生處完畢束影響占用肩避彎槽化步人汽口箱櫃坑洞漏油燃燒火冒煙察政部更資訊顯告情"
 msgstr ""
-msgid "Use Lane Turn Desires"
-msgstr "啟用低速轉彎輔助 (Lane Turn Desire)"
 
-msgid "If you're driving below the set speed and have your blinker on, the car will plan a turn in that direction at the nearest drivable path. This prevents situations (like at red lights) where the car might plan the wrong turn direction."
-msgstr "當車速低於設定值且打方向燈時，車輛將會在最近的可行駛路徑上自動規劃轉彎。這可避免（如停紅燈時）車輛規劃錯誤的轉彎方向。"
+msgid "Use Lane Turn Desires (LTD)"
+msgstr "啟用低速轉彎輔助 (LTD)"
+
+msgid "If you're driving below the set speed and have your blinker on, the car will plan a turn in that direction at the nearest drivable path. This prevents situations (like at red lights) where the car might plan the wrong turn direction. From SunnyPilot."
+msgstr "當車速低於設定值且打方向燈時，車輛將會在最近的可行駛路徑上自動規劃轉彎。這可避免（如停紅燈時）車輛規劃錯誤的轉彎方向。來自SunnyPilot"
 
 msgid "Adjust Lane Turn Speed"
 msgstr "轉彎觸發最高車速"
