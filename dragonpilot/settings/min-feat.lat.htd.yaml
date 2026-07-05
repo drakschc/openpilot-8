@@ -1,8 +1,8 @@
 settings:
   - key: dp_htd_enabled
     type: toggle_item
-    title: "啟用人為轉向偵測 (HTD)"
-    description: "自動巡航時不可用。當車速35公里以下駕駛員大角度手動打方向時自動暫停橫向控制，鬆手後平滑恢復。"
+    title: "啟用人工轉向偵測 (HTD)"
+    description: "自動巡航時不可用。當車速35公里以下駕駛員大角度手動打方向盤時自動暫停橫向控制，方向盤回正後平滑恢復。"
     category: "Lateral"
     flags: PERSISTENT
     param_type: BOOL
