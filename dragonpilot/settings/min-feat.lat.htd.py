@@ -13,7 +13,7 @@ ITEMS = [
     "on_change": [{
       "target": "dp_htd_turn_angle_threshold",
       "action": "set_visible",
-      "condition": "value"
+      "condition": "value == '1'"  # 修改此處
     }]
   },
   {
@@ -31,7 +31,7 @@ ITEMS = [
     "suffix": lambda: tr(" °"),
     "initially_visible_by": {
       "param": "dp_htd_enabled",
-      "condition": "value == True",
+      "condition": "value == '1'", # 修改此處
       "default": 0
     }
   },
