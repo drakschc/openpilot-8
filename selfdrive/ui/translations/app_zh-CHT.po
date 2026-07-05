@@ -855,10 +855,10 @@ msgid "### Human Turn Detection ###"
 msgstr "### 人工轉彎檢測 ###"
 
 msgid "Enable Human Turn Detection"
-msgstr "啟用人工轉彎檢測(HTD)"
+msgstr "啟用人工轉向偵測 (HTD)"
 
-msgid "Unavailable during cruise control.Automatically pause steering when the driver applies large manual steering input, then smoothly resume."
-msgstr "自動巡航時不可用。當車速35公里以下駕駛員大角度手動打方向時自動暫停橫向控制，鬆手後平滑恢復。"
+msgid "Unavailable during auto cruise. Automatically pauses lateral control when the driver applies a large manual steering angle at speeds below 35 km/h, and smoothly resumes after the steering wheel is centered."
+msgstr "自動巡航時不可用。當車速35公里以下駕駛員大角度手動打方向盤時自動暫停橫向控制，方向盤回正後平滑恢復。"
 
 msgid "Trigger angle"
 msgstr "觸發角度"
