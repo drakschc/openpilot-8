@@ -112,7 +112,7 @@ class HudRenderer(Widget):
     self.tdx_event_active: bool = False
     self.tdx_event_desc: str = ""
 
-    # --- 新增前車距離變數 (參考 C3) ---
+    # --- 新增前車距離變數 ---
     self.lead_dist: str = "-"
     self.lead_dist_raw: float = 0.0
 
@@ -161,7 +161,7 @@ class HudRenderer(Widget):
       self.lead_dist_raw = 0.0
       return
 
-    # --- 讀取雷達狀態 (參考 C3 邏輯) ---
+    # --- 讀取雷達狀態 ---
     radar_state = sm['radarState']
     if radar_state.leadOne.status:
       self.lead_dist_raw = radar_state.leadOne.dRel
@@ -233,28 +233,41 @@ class HudRenderer(Widget):
     """Render HUD elements to the screen."""
     # 1. 先繪製一般行車狀態的 UI（底層）
     
-    # 註解小方向盤以及 扭力bar的顯示
+    # 註解小方向盤以及扭力bar的顯示
     # self._torque_bar.render(rect)
     # self._draw_steering_wheel(rect)
 
     if self.is_cruise_set:
       self._draw_set_speed(rect)
 
-    # 取代為顯示紅色球與距離
+    # 取代為顯示動態球體與距離
     self._draw_lead_info(rect)
     
     # 2. 最後繪製 TDX 警告（最上層、最高優先級）
     self._draw_tdx_info(rect)
 
   def _draw_lead_info(self, rect: rl.Rectangle) -> None:
-    """繪製紅球與前車距離 (與原方向盤同高度與位置)"""
+    """繪製球體與前車距離 (與原方向盤同高度與位置)"""
     # 沿用原先方向盤的座標邏輯 (x偏移21 + 寬度50的一半 = 46)
     # y座標也維持原本計算方式以保證高度相同
     pos_x = int(rect.x + 46)
     pos_y = int(rect.y + rect.height - 39)
     
-    # 繪製紅色球體 (半徑設為 25，使其直徑50與原方向盤圖示相同)
-    rl.draw_circle(pos_x, pos_y, 25, rl.RED)
+    # 預設狀態（未鎖定前車）
+    ball_color = rl.RED
+    dist_color = rl.WHITE
+    
+    # 根據前車鎖定狀態與距離動態變更顏色
+    if self.lead_dist != "-":
+      if self.lead_dist_raw < 15.0:
+        ball_color = rl.RED  # 前車距離低於 15 米改為紅色球
+        dist_color = rl.Color(255, 100, 100, 255) # 文字同步改為淺紅警示
+      else:
+        ball_color = rl.GREEN # 有鎖定前車且大於等於 15 米改為綠色球
+        dist_color = rl.Color(128, 216, 166, 255) # 文字同步改為綠色
+    
+    # 繪製球體 (半徑設為 25，使其直徑50與原方向盤圖示相同)
+    rl.draw_circle(pos_x, pos_y, 25, ball_color)
 
     # 繪製前車距離 (顯示在球體右側)
     dist_text = self.lead_dist
@@ -263,11 +276,6 @@ class HudRenderer(Widget):
     
     text_x = pos_x + 35  # 在球體右側留出空間
     text_y = pos_y - dist_size.y / 2
-    
-    # 距離小於 15m 變色警示
-    dist_color = rl.WHITE
-    if self.lead_dist != "-" and self.lead_dist_raw < 15.0:
-        dist_color = rl.Color(255, 100, 100, 255)
         
     rl.draw_text_ex(self._font_bold, dist_text, rl.Vector2(text_x, text_y), dist_font_size, 0, dist_color)
 
@@ -276,7 +284,7 @@ class HudRenderer(Widget):
     if not self.tdx_event_active or not self.tdx_event_desc:
       return
 
-    # 繪製全區半透明黑色遮罩，壓暗背景其他 UI (如方向盤、速度等)，讓警告絕對突顯
+    # 繪製全區半透明黑色遮罩，壓暗背景其他 UI，讓警告絕對突顯
     rl.draw_rectangle(int(rect.x), int(rect.y), int(rect.width), int(rect.height), rl.Color(0, 0, 0, 120))
 
     # 字體放大至 60
