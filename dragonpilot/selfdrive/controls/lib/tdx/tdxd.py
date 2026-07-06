@@ -330,7 +330,7 @@ def main():
 
     MAX_HORIZONTAL_ACCURACY = 50.0
     last_api_call = 0
-    UPDATE_INTERVAL = 30 
+    UPDATE_INTERVAL = 60 
 
     last_calc_time = 0           
     CALC_INTERVAL = 1.0          
