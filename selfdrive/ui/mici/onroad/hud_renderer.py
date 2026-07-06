@@ -112,6 +112,10 @@ class HudRenderer(Widget):
     self.tdx_event_active: bool = False
     self.tdx_event_desc: str = ""
 
+    # --- 新增前車距離變數 (參考 C3) ---
+    self.lead_dist: str = "-"
+    self.lead_dist_raw: float = 0.0
+
     self._can_draw_top_icons = True
     self._show_wheel_critical = False
 
@@ -153,9 +157,20 @@ class HudRenderer(Widget):
       self.speed = 0.0
       self.tdx_event_active = False
       self.tdx_event_desc = ""
+      self.lead_dist = "-"
+      self.lead_dist_raw = 0.0
       return
 
-    # 讀取 TDX 狀態 (解析標籤)
+    # --- 讀取雷達狀態 (參考 C3 邏輯) ---
+    radar_state = sm['radarState']
+    if radar_state.leadOne.status:
+      self.lead_dist_raw = radar_state.leadOne.dRel
+      self.lead_dist = f"{self.lead_dist_raw:.0f}m"
+    else:
+      self.lead_dist_raw = 0.0
+      self.lead_dist = "-"
+
+    # --- 讀取 TDX 狀態 (僅保留前方路段) ---
     try:
       tdx = sm['tdx']
       self.tdx_event_active = tdx.roadEvent.isActive
@@ -169,24 +184,24 @@ class HudRenderer(Widget):
       if raw_desc and ":" in raw_desc:
           loc_part, events_part = raw_desc.split(":", 1)
           
-          # 將「目前」或「前方」替換成更明確的字眼
-          if "目前" in loc_part:
-              loc_part = "目前路段"
-          elif "前方" in loc_part:
+          # 僅過濾並處理包含「前方」的資訊
+          if "前方" in loc_part:
               loc_part = "前方路段"
+              label_events = []
+              for evt in events_part.split("/"):
+                  parts = evt.split("|")
+                  evt_type = parts[0] if len(parts) > 1 else '0'
+                  label_events.append(EVENT_TYPE_LABEL.get(evt_type, '[其他]'))
 
-          label_events = []
-          for evt in events_part.split("/"):
-              parts = evt.split("|")
-              evt_type = parts[0] if len(parts) > 1 else '0'
-              label_events.append(EVENT_TYPE_LABEL.get(evt_type, '[其他]'))
+              unique_labels = []
+              for lbl in label_events:
+                  if lbl not in unique_labels:
+                      unique_labels.append(lbl)
 
-          unique_labels = []
-          for lbl in label_events:
-              if lbl not in unique_labels:
-                  unique_labels.append(lbl)
-
-          self.tdx_event_desc = f"{loc_part}:{ ''.join(unique_labels) }"
+              self.tdx_event_desc = f"{loc_part}:{ ''.join(unique_labels) }"
+          else:
+              # 若非前方路段，則不顯示
+              self.tdx_event_desc = ""
       else:
           self.tdx_event_desc = ""
 
@@ -217,22 +232,51 @@ class HudRenderer(Widget):
   def _render(self, rect: rl.Rectangle) -> None:
     """Render HUD elements to the screen."""
     # 1. 先繪製一般行車狀態的 UI（底層）
-    self._torque_bar.render(rect)
+    
+    # 註解小方向盤以及 扭力bar的顯示
+    # self._torque_bar.render(rect)
+    # self._draw_steering_wheel(rect)
 
     if self.is_cruise_set:
       self._draw_set_speed(rect)
 
-    self._draw_steering_wheel(rect)
+    # 取代為顯示紅色球與距離
+    self._draw_lead_info(rect)
     
     # 2. 最後繪製 TDX 警告（最上層、最高優先級）
     self._draw_tdx_info(rect)
+
+  def _draw_lead_info(self, rect: rl.Rectangle) -> None:
+    """繪製紅球與前車距離 (與原方向盤同高度與位置)"""
+    # 沿用原先方向盤的座標邏輯 (x偏移21 + 寬度50的一半 = 46)
+    # y座標也維持原本計算方式以保證高度相同
+    pos_x = int(rect.x + 46)
+    pos_y = int(rect.y + rect.height - 39)
+    
+    # 繪製紅色球體 (半徑設為 25，使其直徑50與原方向盤圖示相同)
+    rl.draw_circle(pos_x, pos_y, 25, rl.RED)
+
+    # 繪製前車距離 (顯示在球體右側)
+    dist_text = self.lead_dist
+    dist_font_size = 40
+    dist_size = measure_text_cached(self._font_bold, dist_text, dist_font_size)
+    
+    text_x = pos_x + 35  # 在球體右側留出空間
+    text_y = pos_y - dist_size.y / 2
+    
+    # 距離小於 15m 變色警示
+    dist_color = rl.WHITE
+    if self.lead_dist != "-" and self.lead_dist_raw < 15.0:
+        dist_color = rl.Color(255, 100, 100, 255)
+        
+    rl.draw_text_ex(self._font_bold, dist_text, rl.Vector2(text_x, text_y), dist_font_size, 0, dist_color)
 
   def _draw_tdx_info(self, rect: rl.Rectangle) -> None:
     """TDX 路況警告：畫面絕對置中顯示，字體放大，並具備最高視覺優先級"""
     if not self.tdx_event_active or not self.tdx_event_desc:
       return
 
-    # 【新增】繪製全區半透明黑色遮罩，壓暗背景其他 UI (如方向盤、速度等)，讓警告絕對突顯
+    # 繪製全區半透明黑色遮罩，壓暗背景其他 UI (如方向盤、速度等)，讓警告絕對突顯
     rl.draw_rectangle(int(rect.x), int(rect.y), int(rect.width), int(rect.height), rl.Color(0, 0, 0, 120))
 
     # 字體放大至 60
