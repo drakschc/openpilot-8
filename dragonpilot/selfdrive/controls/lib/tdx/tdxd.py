@@ -349,7 +349,7 @@ def main():
     TEST_MODE = True
     TEST_LAT = 24.821673
     TEST_LON = 121.200006
-    TEST_BEARING = 65.0   
+    TEST_BEARING = 0.0   
     # ==========================================
 
     while True:
