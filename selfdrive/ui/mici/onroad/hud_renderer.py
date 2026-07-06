@@ -283,9 +283,9 @@ class HudRenderer(Widget):
     self._draw_edge_warnings(rect)
 
   def _draw_edge_warnings(self, rect: rl.Rectangle) -> None:
-    """繪製兩側方向燈與盲區警示 (寬度減半、靠上方對齊避開球體)"""
+    """繪製兩側方向燈與盲區警示 (寬度減半、高度設為 60%、靠上方對齊避開球體)"""
     bar_width = 30  # 寬度從 60 減半為 30
-    bar_height = int(rect.height * 0.45) # 高度設為畫面 45%，完全不會壓到下方的球
+    bar_height = int(rect.height * 0.60) # 高度設為畫面 60%
     y_pos = int(rect.y + 20) # 靠上方對齊，距離頂部留 20px 邊距
 
     # 左側邊條
@@ -328,11 +328,11 @@ class HudRenderer(Widget):
     rl.draw_text_ex(self._font_bold, dist_text, rl.Vector2(text_x, text_y), dist_font_size, 0, dist_color)
 
   def _draw_tdx_info(self, rect: rl.Rectangle) -> None:
-    """TDX 路況警告：防範干擾兩側盲區 (使用新的 bar_width)"""
+    """TDX 路況警告：防範干擾兩側盲區"""
     if not self.tdx_event_active or not self.tdx_event_desc:
       return
 
-    bar_width = 30  # 同步變窄
+    bar_width = 30
 
     # 繪製全區半透明黑色遮罩，避開兩側盲區區域
     safe_x = int(rect.x + bar_width)
