@@ -224,14 +224,14 @@ class HudRenderer(Widget):
     # --- 測試模式：模擬方向燈與盲區來回顯示 ---
     # =========================================================================
     t = time.time()
-    cycle = int(t / 2) % 6  # 每 2 秒切換一個情境，總共 6 個情境
+    cycle = int(t / 2) % 6  # 每 2 秒切換一個情境
 
     self.left_blinker = False
     self.right_blinker = False
     self.left_blindspot = False
     self.right_blindspot = False
 
-    is_blinking = int(t * 2) % 2 == 0  # 每 0.5 秒閃爍一次 (True/False 交替)
+    is_blinking = int(t * 2) % 2 == 0  # 每 0.5 秒閃爍
 
     if cycle == 0:
         self.left_blinker = is_blinking
@@ -276,24 +276,22 @@ class HudRenderer(Widget):
     # 顯示動態球體與距離
     self._draw_lead_info(rect)
     
-    # 繪製 TDX 警告 (加入了防干擾保護)
+    # 繪製 TDX 警告
     self._draw_tdx_info(rect)
 
-    # 繪製邊緣方向燈與盲區 (放在最後確保亮度)
+    # 繪製邊緣方向燈與盲區
     self._draw_edge_warnings(rect)
 
   def _draw_edge_warnings(self, rect: rl.Rectangle) -> None:
-    """繪製兩側方向燈與盲區警示 (盲區優先級最高)"""
-    bar_width = 60
-    bar_height = int(rect.height * 0.6)
-    y_pos = int(rect.y + (rect.height - bar_height) / 2)
+    """繪製兩側方向燈與盲區警示 (寬度減半、靠上方對齊避開球體)"""
+    bar_width = 30  # 寬度從 60 減半為 30
+    bar_height = int(rect.height * 0.45) # 高度設為畫面 45%，完全不會壓到下方的球
+    y_pos = int(rect.y + 20) # 靠上方對齊，距離頂部留 20px 邊距
 
     # 左側邊條
     if self.left_blindspot:
-      # 盲區黃色 (最優先)
       rl.draw_rectangle(int(rect.x), y_pos, bar_width, bar_height, rl.Color(255, 204, 0, 220)) 
     elif self.left_blinker:
-      # 方向燈綠色
       rl.draw_rectangle(int(rect.x), y_pos, bar_width, bar_height, rl.Color(0, 255, 0, 220)) 
 
     # 右側邊條
@@ -330,13 +328,13 @@ class HudRenderer(Widget):
     rl.draw_text_ex(self._font_bold, dist_text, rl.Vector2(text_x, text_y), dist_font_size, 0, dist_color)
 
   def _draw_tdx_info(self, rect: rl.Rectangle) -> None:
-    """TDX 路況警告：畫面絕對置中顯示，並防範干擾兩側盲區"""
+    """TDX 路況警告：防範干擾兩側盲區 (使用新的 bar_width)"""
     if not self.tdx_event_active or not self.tdx_event_desc:
       return
 
-    bar_width = 60  # 兩側盲區光條的預留寬度
+    bar_width = 30  # 同步變窄
 
-    # 繪製全區半透明黑色遮罩，但避開兩側盲區區域
+    # 繪製全區半透明黑色遮罩，避開兩側盲區區域
     safe_x = int(rect.x + bar_width)
     safe_width = int(rect.width - bar_width * 2)
     rl.draw_rectangle(safe_x, int(rect.y), safe_width, int(rect.height), rl.Color(0, 0, 0, 120))
@@ -348,11 +346,9 @@ class HudRenderer(Widget):
     bg_padding_x = 25
     bg_padding_y = 15
 
-    # 限制 TDX 顯示最大寬度，避免文字或紅色背景蓋到兩側
     max_text_width = safe_width - bg_padding_x * 2 - 20 
     display_width = min(text_size.x, max_text_width)
 
-    # 畫面絕對置中
     pos_x = rect.x + (rect.width - display_width) / 2
     pos_y = rect.y + (rect.height - text_size.y) / 2
     
@@ -363,11 +359,9 @@ class HudRenderer(Widget):
         text_size.y + bg_padding_y * 2
     )
     
-    # 呼吸燈閃爍警告背景
     alpha = 150 + int(60 * math.sin(time.time() * 5))
     rl.draw_rectangle_rounded(bg_rect, 0.2, 10, rl.Color(220, 50, 50, alpha))
     
-    # 繪製文字 (判斷是否需要跑馬燈)
     if text_size.x > max_text_width:
       rl.begin_scissor_mode(int(bg_rect.x), int(bg_rect.y), int(bg_rect.width), int(bg_rect.height))
 
@@ -394,7 +388,6 @@ class HudRenderer(Widget):
 
       rl.end_scissor_mode()
     else:
-      # 文字沒超長 -> 直接單行置中顯示
       rl.draw_text_ex(self._font_bold, self.tdx_event_desc, rl.Vector2(pos_x, pos_y), font_size, 0, rl.WHITE)
 
   def _draw_steering_wheel(self, rect: rl.Rectangle) -> None:
