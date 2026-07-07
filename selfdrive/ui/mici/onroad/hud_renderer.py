@@ -213,30 +213,37 @@ class HudRenderer(Widget):
       self.lead_dist_raw = 0.0
       self.lead_dist = "-"
 
-    # --- 讀取 TDX 狀態 (直接顯示內容，不加標題) ---
+    # --- 讀取 TDX 狀態 (改為顯示事件分類標題，不加空格) ---
     try:
       tdx = sm['tdx']
       self.tdx_event_active = tdx.roadEvent.isActive
       raw_desc = str(tdx.roadEvent.description)
 
+      EVENT_TYPE_LABEL = {
+          '1': '[事故]', '2': '[施工]', '3': '[壅塞]',
+          '4': '[管制]', '5': '[天氣]', '8': '[異常]'
+      }
+
       if raw_desc and ":" in raw_desc:
           loc_part, events_part = raw_desc.split(":", 1)
           
           if "前方" in loc_part:
-              clean_events = []
+              label_events = []
               for evt in events_part.split("/"):
                   parts = evt.split("|")
-                  # 取 | 後面的實際事件內容 (例如去掉代碼 1| 2| 等等)
-                  content = parts[1] if len(parts) > 1 else evt
-                  clean_events.append(content)
+                  # 取 | 前面的事件代碼 (例如 1, 2)
+                  evt_type = parts[0] if len(parts) > 1 else '0'
+                  # 將代碼轉為對應的標題，找不到則顯示 [其他]
+                  label = EVENT_TYPE_LABEL.get(evt_type, '[其他]')
+                  label_events.append(label)
 
-              unique_events = []
-              for evt in clean_events:
-                  if evt not in unique_events:
-                      unique_events.append(evt)
+              unique_labels = []
+              for lbl in label_events:
+                  if lbl not in unique_labels:
+                      unique_labels.append(lbl)
 
-              # 直接組裝為「前方:事件內容」(無空格)
-              self.tdx_event_desc = f"前方:{' / '.join(unique_events)}"
+              # 直接組裝為「前方:標題」(無空格)，例如 前方:[事故][施工]
+              self.tdx_event_desc = f"前方:{''.join(unique_labels)}"
           else:
               self.tdx_event_desc = ""
       else:
@@ -256,6 +263,35 @@ class HudRenderer(Widget):
     self._dp_indicator_show_right, self._dp_indicator_count_right, self._dp_indicator_color_right = \
       self._update_dp_indicator_side_state(car_state.rightBlinker, car_state.rightBlindspot,
                                            self._dp_indicator_show_right, self._dp_indicator_count_right)
+
+    # =========================================================================
+    # --- 測試模式：模擬方向燈與盲區來回顯示 (已註解關閉) ---
+    # =========================================================================
+    # t = time.time()
+    # cycle = int(t / 2) % 6  # 每 2 秒切換一個情境
+    #
+    # self.left_blinker = False
+    # self.right_blinker = False
+    # self.left_blindspot = False
+    # self.right_blindspot = False
+    #
+    # is_blinking = int(t * 2) % 2 == 0  # 每 0.5 秒閃爍
+    #
+    # if cycle == 0:
+    #     self.left_blinker = is_blinking
+    # elif cycle == 1:
+    #     self.right_blinker = is_blinking
+    # elif cycle == 2:
+    #     self.left_blindspot = True
+    # elif cycle == 3:
+    #     self.right_blindspot = True
+    # elif cycle == 4:
+    #     self.left_blinker = is_blinking
+    #     self.left_blindspot = True
+    # elif cycle == 5:
+    #     self.right_blinker = is_blinking
+    #     self.right_blindspot = True
+    # =========================================================================
 
     v_cruise_cluster = car_state.vCruiseCluster
     set_speed = (
@@ -347,7 +383,7 @@ class HudRenderer(Widget):
     if not self.tdx_event_active or not self.tdx_event_desc:
       return
 
-    font_size = 60
+    font_size = 65
     text_size = measure_text_cached(self._font_bold, self.tdx_event_desc, font_size)
     
     bg_padding_x = 25
