@@ -336,31 +336,18 @@ class HudRenderer(Widget):
       rl.draw_rectangle(int(rect.x + rect.width - bar_width), y_pos, bar_width, bar_height, self._dp_indicator_color_right)
 
   def _draw_lead_info(self, rect: rl.Rectangle) -> None:
-    """繪製立體球體與前車距離 (加入專屬黑底)"""
+    """繪製立體球體與前車距離 (黑底僅限球體本身)"""
     pos_x = int(rect.x + 46)
     pos_y = int(rect.y + rect.height - 39)
     
     # 球體尺寸微調
     radius_x = 25.0
     radius_y = 25.0
+
+    # --- 繪製僅限球體本身的專屬黑底 ---
+    bg_padding = 8.0  # 向外擴張 8 個像素形成一圈黑色邊框
+    rl.draw_ellipse(pos_x, pos_y, radius_x + bg_padding, radius_y + bg_padding, rl.Color(0, 0, 0, 180))
     
-    # --- 計算文字尺寸並繪製黑底 ---
-    dist_text = self.lead_dist
-    dist_font_size = 40
-    dist_size = measure_text_cached(self._font_bold, dist_text, dist_font_size)
-
-    bg_padding_x = 15
-    bg_padding_y = 10
-    bg_x = pos_x - radius_x - bg_padding_x
-    bg_y = pos_y - radius_y - bg_padding_y
-    # 寬度包含：球體半徑 + 右側間距(35) + 文字寬度 + 兩側 Padding
-    bg_width = radius_x + 35 + dist_size.x + bg_padding_x * 2
-    bg_height = radius_y * 2 + bg_padding_y * 2
-
-    bg_rect = rl.Rectangle(bg_x, bg_y, bg_width, bg_height)
-    # 繪製黑底 (透明度 180，與 TDX 頻道一致，0.5 呈現完美藥丸圓角)
-    rl.draw_rectangle_rounded(bg_rect, 0.5, 10, rl.Color(0, 0, 0, 180))
-
     dist_color = rl.WHITE
     
     # 判斷是否處於警告狀態：未鎖定前車，或距離低於 15 米
@@ -386,10 +373,17 @@ class HudRenderer(Widget):
     rl.draw_ellipse(pos_x, pos_y, radius_x, radius_y, edge_color)
     # 繪製上層亮色 (稍微縮小，製造出球體的立體反光感)
     rl.draw_ellipse(pos_x, pos_y, radius_x * 0.7, radius_y * 0.7, center_color)
+
+    dist_text = self.lead_dist
+    dist_font_size = 40
+    dist_size = measure_text_cached(self._font_bold, dist_text, dist_font_size)
     
     text_x = pos_x + 35  
     text_y = pos_y - dist_size.y / 2
         
+    # 繪製文字陰影 (確保在無黑底的情況下，於強光背景中也能清楚辨識數字)
+    rl.draw_text_ex(self._font_bold, dist_text, rl.Vector2(text_x + 2, text_y + 2), dist_font_size, 0, rl.Color(0, 0, 0, 150))
+    # 繪製文字主體
     rl.draw_text_ex(self._font_bold, dist_text, rl.Vector2(text_x, text_y), dist_font_size, 0, dist_color)
 
   def _draw_tdx_info(self, rect: rl.Rectangle) -> None:
