@@ -307,31 +307,42 @@ class HudRenderer(Widget):
       rl.draw_rectangle(int(rect.x + rect.width - bar_width), y_pos, bar_width, bar_height, self._dp_indicator_color_right)
 
   def _draw_lead_info(self, rect: rl.Rectangle) -> None:
-    """繪製立體球體與前車距離"""
+    """繪製立體球體與前車距離 (加入未鎖定/距離過近的閃爍警示)"""
     pos_x = int(rect.x + 46)
     pos_y = int(rect.y + rect.height - 39)
     
+    # 球體尺寸微調
     radius_x = 25.0
     radius_y = 25.0
     
     dist_color = rl.WHITE
     
-    if self.lead_dist != "-":
-      if self.lead_dist_raw < 15.0:
-        center_color = rl.Color(255, 100, 100, 255) 
-        edge_color = rl.Color(180, 0, 0, 255)       
-        dist_color = rl.Color(255, 100, 100, 255)
-      else:
-        center_color = rl.Color(150, 255, 150, 255) 
-        edge_color = rl.Color(0, 180, 0, 255)       
-        dist_color = rl.Color(128, 216, 166, 255)
-    else:
-      center_color = rl.Color(255, 100, 100, 255)
-      edge_color = rl.Color(180, 0, 0, 255)
+    # 判斷是否處於警告狀態：未鎖定前車，或距離低於 15 米
+    is_warning = (self.lead_dist == "-") or (self.lead_dist_raw < 15.0)
 
+    if is_warning:
+      # 計算閃爍 Alpha 值 (約在 45 ~ 255 之間來回)
+      # 調整乘數控制閃爍速度
+      alpha = 150 + int(105 * math.sin(time.time() * 8))
+      
+      center_color = rl.Color(255, 100, 100, alpha) 
+      edge_color = rl.Color(180, 0, 0, alpha)       
+      
+      # 為了文字可讀性，距離數字維持穩定不閃爍
+      if self.lead_dist != "-":
+        dist_color = rl.Color(255, 100, 100, 255)
+    else:
+      # 安全狀態：綠色恆亮
+      center_color = rl.Color(150, 255, 150, 255) 
+      edge_color = rl.Color(0, 180, 0, 255)       
+      dist_color = rl.Color(128, 216, 166, 255)
+
+    # 繪製底層暗色 (做為邊緣)
     rl.draw_ellipse(pos_x, pos_y, radius_x, radius_y, edge_color)
+    # 繪製上層亮色 (稍微縮小，製造出球體的立體反光感)
     rl.draw_ellipse(pos_x, pos_y, radius_x * 0.7, radius_y * 0.7, center_color)
 
+    # 繪製前車距離字串
     dist_text = self.lead_dist
     dist_font_size = 40
     dist_size = measure_text_cached(self._font_bold, dist_text, dist_font_size)
@@ -346,7 +357,6 @@ class HudRenderer(Widget):
     if not self.tdx_event_active or not self.tdx_event_desc:
       return
 
-    # 將字體由 60 放大至 70
     font_size = 70
     text_size = measure_text_cached(self._font_bold, self.tdx_event_desc, font_size)
     
@@ -360,8 +370,7 @@ class HudRenderer(Widget):
     display_width = min(text_size.x, max_text_width) if is_overflow else text_size.x
 
     pos_x = rect.x + (rect.width - display_width) / 2
-    # 將 Y 軸位置往上平移 10 個像素
-    pos_y = rect.y + (rect.height - text_size.y) / 2 - 15
+    pos_y = rect.y + (rect.height - text_size.y) / 2 - 10
     
     bg_rect = rl.Rectangle(
         pos_x - bg_padding_x, 
