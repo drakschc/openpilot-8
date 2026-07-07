@@ -21,7 +21,7 @@ CRUISE_DISABLED_CHAR = '–'
 
 SET_SPEED_PERSISTENCE = 2.5  # seconds
 
-# --- 新增：方向燈與盲區閃爍頻率設定 ---
+# --- 方向燈與盲區閃爍頻率設定 ---
 DP_INDICATOR_BLINK_RATE_FAST = int(gui_app.target_fps * 0.25)
 DP_INDICATOR_BLINK_RATE_STD = int(gui_app.target_fps * 0.5)
 DP_INDICATOR_COLOR_BSM = rl.Color(255, 204, 0, 220)      # 盲區黃色
@@ -122,7 +122,7 @@ class HudRenderer(Widget):
     self.lead_dist: str = "-"
     self.lead_dist_raw: float = 0.0
 
-    # --- 新增：邊緣閃爍狀態變數 ---
+    # --- 邊緣閃爍狀態變數 ---
     self._dp_indicator_show_left = False
     self._dp_indicator_show_right = False
     self._dp_indicator_count_left = 0
@@ -213,34 +213,30 @@ class HudRenderer(Widget):
       self.lead_dist_raw = 0.0
       self.lead_dist = "-"
 
-    # --- 讀取 TDX 狀態 ---
+    # --- 讀取 TDX 狀態 (直接顯示內容，不加標題) ---
     try:
       tdx = sm['tdx']
       self.tdx_event_active = tdx.roadEvent.isActive
       raw_desc = str(tdx.roadEvent.description)
 
-      EVENT_TYPE_LABEL = {
-          '1': '[事故]', '2': '[施工]', '3': '[壅塞]',
-          '4': '[管制]', '5': '[天氣]', '8': '[異常]'
-      }
-
       if raw_desc and ":" in raw_desc:
           loc_part, events_part = raw_desc.split(":", 1)
           
           if "前方" in loc_part:
-              loc_part = "前方路段"
-              label_events = []
+              clean_events = []
               for evt in events_part.split("/"):
                   parts = evt.split("|")
-                  evt_type = parts[0] if len(parts) > 1 else '0'
-                  label_events.append(EVENT_TYPE_LABEL.get(evt_type, '[其他]'))
+                  # 取 | 後面的實際事件內容 (例如去掉代碼 1| 2| 等等)
+                  content = parts[1] if len(parts) > 1 else evt
+                  clean_events.append(content)
 
-              unique_labels = []
-              for lbl in label_events:
-                  if lbl not in unique_labels:
-                      unique_labels.append(lbl)
+              unique_events = []
+              for evt in clean_events:
+                  if evt not in unique_events:
+                      unique_events.append(evt)
 
-              self.tdx_event_desc = f"{loc_part}:{ ''.join(unique_labels) }"
+              # 直接組裝為「前方:事件內容」(無空格)
+              self.tdx_event_desc = f"前方:{' / '.join(unique_events)}"
           else:
               self.tdx_event_desc = ""
       else:
@@ -347,23 +343,19 @@ class HudRenderer(Widget):
     rl.draw_text_ex(self._font_bold, dist_text, rl.Vector2(text_x, text_y), dist_font_size, 0, dist_color)
 
   def _draw_tdx_info(self, rect: rl.Rectangle) -> None:
-    """TDX 路況警告：防範干擾兩側盲區，超過範圍才跑馬燈"""
+    """TDX 路況警告：來回跑馬燈，黑底僅限文字顯示區域"""
     if not self.tdx_event_active or not self.tdx_event_desc:
       return
-
-    bar_width = 30
-
-    safe_x = int(rect.x + bar_width)
-    safe_width = int(rect.width - bar_width * 2)
-    rl.draw_rectangle(safe_x, int(rect.y), safe_width, int(rect.height), rl.Color(0, 0, 0, 120))
 
     font_size = 60
     text_size = measure_text_cached(self._font_bold, self.tdx_event_desc, font_size)
     
     bg_padding_x = 25
     bg_padding_y = 15
+    bar_width = 30
 
-    max_text_width = safe_width - bg_padding_x * 2 - 20 
+    # 安全寬度 = 螢幕寬度扣掉左右兩側盲區條 (30*2)、文字左右邊距 (25*2) 以及額外防重疊留白 (20)
+    max_text_width = rect.width - (bar_width * 2) - (bg_padding_x * 2) - 20 
     
     is_overflow = text_size.x > max_text_width
     display_width = min(text_size.x, max_text_width) if is_overflow else text_size.x
@@ -378,6 +370,10 @@ class HudRenderer(Widget):
         text_size.y + bg_padding_y * 2
     )
     
+    # 繪製文字區域專屬的靜態黑色底色 (取代原本涵蓋全畫面的半透明遮罩)
+    rl.draw_rectangle_rounded(bg_rect, 0.2, 10, rl.Color(0, 0, 0, 180))
+
+    # 繪製呼吸燈閃爍紅色背景
     alpha = 150 + int(60 * math.sin(time.time() * 5))
     rl.draw_rectangle_rounded(bg_rect, 0.2, 10, rl.Color(220, 50, 50, alpha))
     
@@ -389,6 +385,7 @@ class HudRenderer(Widget):
       scroll_duration = extra_width / scroll_speed
       pause_duration = 2.0    
 
+      # 使用時間週期計算，達成「向左捲到底 -> 停頓 -> 向右原路捲回 -> 停頓」的平滑來回效果
       cycle_time = time.time() % ((scroll_duration + pause_duration) * 2)
 
       if cycle_time < pause_duration:
