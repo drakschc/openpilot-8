@@ -345,7 +345,7 @@ class HudRenderer(Widget):
     radius_y = 25.0
 
     # --- 繪製僅限球體本身的專屬黑底 ---
-    bg_padding = 8.0  # 向外擴張 8 個像素形成一圈黑色邊框
+    bg_padding = 3.0  # 向外擴張 3 個像素形成一圈黑色邊框
     rl.draw_ellipse(pos_x, pos_y, radius_x + bg_padding, radius_y + bg_padding, rl.Color(0, 0, 0, 180))
     
     dist_color = rl.WHITE
