@@ -261,6 +261,35 @@ class HudRenderer(Widget):
       self._update_dp_indicator_side_state(car_state.rightBlinker, car_state.rightBlindspot,
                                            self._dp_indicator_show_right, self._dp_indicator_count_right)
 
+    # =========================================================================
+    # --- 測試模式：模擬方向燈與盲區來回顯示 (已註解關閉) ---
+    # =========================================================================
+    # t = time.time()
+    # cycle = int(t / 2) % 6  # 每 2 秒切換一個情境
+    #
+    # self.left_blinker = False
+    # self.right_blinker = False
+    # self.left_blindspot = False
+    # self.right_blindspot = False
+    #
+    # is_blinking = int(t * 2) % 2 == 0  # 每 0.5 秒閃爍
+    #
+    # if cycle == 0:
+    #     self.left_blinker = is_blinking
+    # elif cycle == 1:
+    #     self.right_blinker = is_blinking
+    # elif cycle == 2:
+    #     self.left_blindspot = True
+    # elif cycle == 3:
+    #     self.right_blindspot = True
+    # elif cycle == 4:
+    #     self.left_blinker = is_blinking
+    #     self.left_blindspot = True
+    # elif cycle == 5:
+    #     self.right_blinker = is_blinking
+    #     self.right_blindspot = True
+    # =========================================================================
+
     v_cruise_cluster = car_state.vCruiseCluster
     set_speed = (
       controls_state.deprecated.vCruise if v_cruise_cluster == 0.0 else v_cruise_cluster
@@ -280,222 +309,4 @@ class HudRenderer(Widget):
     self.speed = max(0.0, v_ego * speed_conversion)
 
   def _render(self, rect: rl.Rectangle) -> None:
-    """Render HUD elements to the screen."""
-    
-    if self.is_cruise_set:
-      self._draw_set_speed(rect)
-
-    # 顯示動態立體球體與距離
-    self._draw_lead_info(rect)
-    
-    # 繪製 TDX 警告
-    self._draw_tdx_info(rect)
-
-    # 繪製自帶雙閃爍頻率的方向燈與盲區邊條
-    self._draw_edge_warnings(rect)
-
-  def _draw_edge_warnings(self, rect: rl.Rectangle) -> None:
-    """繪製兩側方向燈與盲區警示"""
-    bar_width = 30  
-    bar_height = int(rect.height * 0.60) 
-    y_pos = int(rect.y + 20) 
-
-    if self._dp_indicator_show_left:
-      rl.draw_rectangle(int(rect.x), y_pos, bar_width, bar_height, self._dp_indicator_color_left)
-
-    if self._dp_indicator_show_right:
-      rl.draw_rectangle(int(rect.x + rect.width - bar_width), y_pos, bar_width, bar_height, self._dp_indicator_color_right)
-
-  def _draw_lead_info(self, rect: rl.Rectangle) -> None:
-    """繪製立體球體與前車距離"""
-    pos_x = int(rect.x + 46)
-    pos_y = int(rect.y + rect.height - 39)
-    
-    # 球體尺寸微調
-    radius_x = 25.0
-    radius_y = 25.0
-    
-    dist_color = rl.WHITE
-    
-    # 判斷是否處於警告狀態：未鎖定前車，或距離低於 15 米
-    is_warning = (self.lead_dist == "-") or (self.lead_dist_raw < 15.0)
-
-    if is_warning:
-      # 同步 TDX 頻道的呼吸燈頻率與透明度
-      alpha = 150 + int(60 * math.sin(time.time() * 5))
-      
-      center_color = rl.Color(255, 100, 100, alpha) 
-      edge_color = rl.Color(180, 0, 0, alpha)       
-      
-      # 為了文字可讀性，距離數字維持穩定不閃爍
-      if self.lead_dist != "-":
-        dist_color = rl.Color(255, 100, 100, 255)
-    else:
-      # 安全狀態：綠色恆亮
-      center_color = rl.Color(150, 255, 150, 255) 
-      edge_color = rl.Color(0, 180, 0, 255)       
-      dist_color = rl.Color(128, 216, 166, 255)
-
-    # 繪製底層暗色 (做為邊緣)
-    rl.draw_ellipse(pos_x, pos_y, radius_x, radius_y, edge_color)
-    # 繪製上層亮色 (稍微縮小，製造出球體的立體反光感)
-    rl.draw_ellipse(pos_x, pos_y, radius_x * 0.7, radius_y * 0.7, center_color)
-
-    dist_text = self.lead_dist
-    dist_font_size = 40
-    dist_size = measure_text_cached(self._font_bold, dist_text, dist_font_size)
-    
-    text_x = pos_x + 35  
-    text_y = pos_y - dist_size.y / 2
-        
-    rl.draw_text_ex(self._font_bold, dist_text, rl.Vector2(text_x, text_y), dist_font_size, 0, dist_color)
-
-  def _draw_tdx_info(self, rect: rl.Rectangle) -> None:
-    """TDX 路況警告：來回跑馬燈，黑底僅限文字顯示區域，字體 70，向上平移 10px"""
-    if not self.tdx_event_active or not self.tdx_event_desc:
-      return
-
-    font_size = 70
-    text_size = measure_text_cached(self._font_bold, self.tdx_event_desc, font_size)
-    
-    bg_padding_x = 25
-    bg_padding_y = 15
-    bar_width = 30
-
-    max_text_width = rect.width - (bar_width * 2) - (bg_padding_x * 2) - 20 
-    
-    is_overflow = text_size.x > max_text_width
-    display_width = min(text_size.x, max_text_width) if is_overflow else text_size.x
-
-    pos_x = rect.x + (rect.width - display_width) / 2
-    pos_y = rect.y + (rect.height - text_size.y) / 2 - 10
-    
-    bg_rect = rl.Rectangle(
-        pos_x - bg_padding_x, 
-        pos_y - bg_padding_y, 
-        display_width + bg_padding_x * 2, 
-        text_size.y + bg_padding_y * 2
-    )
-    
-    rl.draw_rectangle_rounded(bg_rect, 0.2, 10, rl.Color(0, 0, 0, 180))
-
-    alpha = 150 + int(60 * math.sin(time.time() * 5))
-    rl.draw_rectangle_rounded(bg_rect, 0.2, 10, rl.Color(220, 50, 50, alpha))
-    
-    if is_overflow:
-      rl.begin_scissor_mode(int(bg_rect.x), int(bg_rect.y), int(bg_rect.width), int(bg_rect.height))
-
-      extra_width = text_size.x - max_text_width
-      scroll_speed = 80.0     
-      scroll_duration = extra_width / scroll_speed
-      pause_duration = 2.0    
-
-      cycle_time = time.time() % ((scroll_duration + pause_duration) * 2)
-
-      if cycle_time < pause_duration:
-        offset = 0.0
-      elif cycle_time < pause_duration + scroll_duration:
-        progress = (cycle_time - pause_duration) / scroll_duration
-        offset = extra_width * progress
-      elif cycle_time < pause_duration * 2 + scroll_duration:
-        offset = extra_width
-      else:
-        progress = (cycle_time - pause_duration * 2 - scroll_duration) / scroll_duration
-        offset = extra_width * (1 - progress)
-
-      draw_x = pos_x - offset
-      rl.draw_text_ex(self._font_bold, self.tdx_event_desc, rl.Vector2(draw_x, pos_y), font_size, 0, rl.WHITE)
-
-      rl.end_scissor_mode()
-    else:
-      rl.draw_text_ex(self._font_bold, self.tdx_event_desc, rl.Vector2(pos_x, pos_y), font_size, 0, rl.WHITE)
-
-  def _draw_steering_wheel(self, rect: rl.Rectangle) -> None:
-    wheel_txt = self._txt_wheel_critical if self._show_wheel_critical else self._txt_wheel
-
-    if self._show_wheel_critical:
-      self._wheel_alpha_filter.update(255)
-      self._wheel_y_filter.update(0)
-    else:
-      if ui_state.status == UIStatus.DISENGAGED and not ui_state.dp_alka_active:
-        self._wheel_alpha_filter.update(0)
-        self._wheel_y_filter.update(wheel_txt.height / 2)
-      else:
-        self._wheel_alpha_filter.update(255 * 0.9)
-        self._wheel_y_filter.update(0)
-
-    pos_x = int(rect.x + 21 + wheel_txt.width / 2)
-    pos_y = int(rect.y + rect.height - 14 - wheel_txt.height / 2 + self._wheel_y_filter.x)
-    rotation = -ui_state.sm['carState'].steeringAngleDeg
-
-    turn_intent_margin = 25
-    self._turn_intent.render(rl.Rectangle(
-      pos_x - wheel_txt.width / 2 - turn_intent_margin,
-      pos_y - wheel_txt.height / 2 - turn_intent_margin,
-      wheel_txt.width + turn_intent_margin * 2,
-      wheel_txt.height + turn_intent_margin * 2,
-    ))
-
-    src_rect = rl.Rectangle(0, 0, wheel_txt.width, wheel_txt.height)
-    dest_rect = rl.Rectangle(pos_x, pos_y, wheel_txt.width, wheel_txt.height)
-    origin = (wheel_txt.width / 2, wheel_txt.height / 2)
-
-    color = rl.Color(255, 255, 255, int(self._wheel_alpha_filter.x))
-    rl.draw_texture_pro(wheel_txt, src_rect, dest_rect, origin, rotation, color)
-
-    if self._show_wheel_critical:
-      EXCLAMATION_POINT_SPACING = 10
-      exclamation_pos_x = pos_x - self._txt_exclamation_point.width / 2 + wheel_txt.width / 2 + EXCLAMATION_POINT_SPACING
-      exclamation_pos_y = pos_y - self._txt_exclamation_point.height / 2
-      rl.draw_texture_ex(self._txt_exclamation_point, rl.Vector2(exclamation_pos_x, exclamation_pos_y), 0.0, 1.0, rl.WHITE)
-
-  def _draw_set_speed(self, rect: rl.Rectangle) -> None:
-    alpha = self._set_speed_alpha_filter.update(0 < rl.get_time() - self._set_speed_changed_time < SET_SPEED_PERSISTENCE and
-                                                self._can_draw_top_icons and self._engaged)
-    if alpha < 1e-2:
-      return
-
-    x = rect.x
-    y = rect.y
-
-    circle_radius = 162 // 2
-    rl.draw_circle_gradient(rl.Vector2(x + circle_radius, y + circle_radius), circle_radius,
-                            rl.Color(0, 0, 0, int(255 / 2 * alpha)), rl.BLANK)
-
-    set_speed_color = rl.Color(255, 255, 255, int(255 * 0.9 * alpha))
-    max_color = rl.Color(255, 255, 255, int(255 * 0.9 * alpha))
-
-    set_speed = self.set_speed
-    if self.is_cruise_set and not ui_state.is_metric:
-      set_speed *= KM_TO_MILE
-
-    set_speed_text = CRUISE_DISABLED_CHAR if not self.is_cruise_set else str(round(set_speed))
-    rl.draw_text_ex(
-      self._font_display,
-      set_speed_text,
-      rl.Vector2(x + 13 + 4, y + 3 - 8 - 3 + 4),
-      FONT_SIZES.set_speed,
-      0,
-      set_speed_color,
-    )
-
-    max_text = tr("MAX")
-    rl.draw_text_ex(
-      self._font_semi_bold,
-      max_text,
-      rl.Vector2(x + 25, y + FONT_SIZES.set_speed - 7 + 4),
-      FONT_SIZES.max_speed,
-      0,
-      max_color,
-    )
-
-  def _draw_current_speed(self, rect: rl.Rectangle) -> None:
-    speed_text = str(round(self.speed))
-    speed_text_size = measure_text_cached(self._font_bold, speed_text, FONT_SIZES.current_speed)
-    speed_pos = rl.Vector2(rect.x + rect.width / 2 - speed_text_size.x / 2, 180 - speed_text_size.y / 2)
-    rl.draw_text_ex(self._font_bold, speed_text, speed_pos, FONT_SIZES.current_speed, 0, COLORS.WHITE)
-
-    unit_text = tr("km/h") if ui_state.is_metric else tr("mph")
-    unit_text_size = measure_text_cached(self._font_medium, unit_text, FONT_SIZES.speed_unit)
-    unit_pos = rl.Vector2(rect.x + rect.width / 2 - unit_text_size.x / 2, 290 - unit_text_size.y / 2)
-    rl.draw_text_ex(self._font_medium, unit_text, unit_pos, FONT_SIZES.speed_unit, 0, COLORS.WHITE_TRANSLUCENT)
+    """Render HUD elements
