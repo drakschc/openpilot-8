@@ -252,43 +252,24 @@ class HudRenderer(Widget):
     controls_state = sm['controlsState']
     car_state = sm['carState']
 
-    # --- 更新兩側方向燈與盲區閃爍狀態 ---
-    self._dp_indicator_show_left, self._dp_indicator_count_left, self._dp_indicator_color_left = \
-      self._update_dp_indicator_side_state(car_state.leftBlinker, car_state.leftBlindspot,
-                                           self._dp_indicator_show_left, self._dp_indicator_count_left)
+    # --- 測試模式啟用中 ---
+    t = time.time()
+    cycle = int(t / 2) % 6
+    is_blinking = int(t * 2) % 2 == 0
     
-    self._dp_indicator_show_right, self._dp_indicator_count_right, self._dp_indicator_color_right = \
-      self._update_dp_indicator_side_state(car_state.rightBlinker, car_state.rightBlindspot,
-                                           self._dp_indicator_show_right, self._dp_indicator_count_right)
-
-    # =========================================================================
-    # --- 測試模式：模擬方向燈與盲區來回顯示 (已註解關閉) ---
-    # =========================================================================
-      t = time.time()
-      cycle = int(t / 2) % 6  # 每 2 秒切換一個情境
-    #
-      self.left_blinker = False
-      self.right_blinker = False
-      self.left_blindspot = False
-      self.right_blindspot = False
-    #
-      is_blinking = int(t * 2) % 2 == 0  # 每 0.5 秒閃爍
-    #
-      if cycle == 0:
-          self.left_blinker = is_blinking
-      elif cycle == 1:
-          self.right_blinker = is_blinking
-      elif cycle == 2:
-          self.left_blindspot = True
-      elif cycle == 3:
-          self.right_blindspot = True
-      elif cycle == 4:
-          self.left_blinker = is_blinking
-          self.left_blindspot = True
-      elif cycle == 5:
-          self.right_blinker = is_blinking
-          self.right_blindspot = True
-    # =========================================================================
+    # 測試模式會覆寫真實訊號
+    if cycle == 0:
+        self._dp_indicator_show_left, self._dp_indicator_count_left, self._dp_indicator_color_left = self._update_dp_indicator_side_state(is_blinking, False, self._dp_indicator_show_left, self._dp_indicator_count_left)
+    elif cycle == 1:
+        self._dp_indicator_show_right, self._dp_indicator_count_right, self._dp_indicator_color_right = self._update_dp_indicator_side_state(is_blinking, False, self._dp_indicator_show_right, self._dp_indicator_count_right)
+    elif cycle == 2:
+        self._dp_indicator_show_left, self._dp_indicator_count_left, self._dp_indicator_color_left = self._update_dp_indicator_side_state(False, True, self._dp_indicator_show_left, self._dp_indicator_count_left)
+    elif cycle == 3:
+        self._dp_indicator_show_right, self._dp_indicator_count_right, self._dp_indicator_color_right = self._update_dp_indicator_side_state(False, True, self._dp_indicator_show_right, self._dp_indicator_count_right)
+    elif cycle == 4:
+        self._dp_indicator_show_left, self._dp_indicator_count_left, self._dp_indicator_color_left = self._update_dp_indicator_side_state(is_blinking, True, self._dp_indicator_show_left, self._dp_indicator_count_left)
+    elif cycle == 5:
+        self._dp_indicator_show_right, self._dp_indicator_count_right, self._dp_indicator_color_right = self._update_dp_indicator_side_state(is_blinking, True, self._dp_indicator_show_right, self._dp_indicator_count_right)
 
     v_cruise_cluster = car_state.vCruiseCluster
     set_speed = (
@@ -336,7 +317,7 @@ class HudRenderer(Widget):
       rl.draw_rectangle(int(rect.x + rect.width - bar_width), y_pos, bar_width, bar_height, self._dp_indicator_color_right)
 
   def _draw_lead_info(self, rect: rl.Rectangle) -> None:
-    """繪製立體球體與前車距離 (黑底僅限球體本身)"""
+    """繪製立體球體與前車距離 (黑底僅限球體本身，縮小5pix)"""
     pos_x = int(rect.x + 46)
     pos_y = int(rect.y + rect.height - 39)
     
@@ -344,8 +325,8 @@ class HudRenderer(Widget):
     radius_x = 25.0
     radius_y = 25.0
 
-    # --- 繪製僅限球體本身的專屬黑底 ---
-    bg_padding = 3.0  # 向外擴張 3 個像素形成一圈黑色邊框
+    # --- 繪製僅限球體本身的專屬黑底 (縮小5pix，將 bg_padding 從 8 改為 3) ---
+    bg_padding = 3.0  
     rl.draw_ellipse(pos_x, pos_y, radius_x + bg_padding, radius_y + bg_padding, rl.Color(0, 0, 0, 180))
     
     dist_color = rl.WHITE
@@ -381,13 +362,13 @@ class HudRenderer(Widget):
     text_x = pos_x + 35  
     text_y = pos_y - dist_size.y / 2
         
-    # 繪製文字陰影 (確保在無黑底的情況下，於強光背景中也能清楚辨識數字)
+    # 繪製文字陰影
     rl.draw_text_ex(self._font_bold, dist_text, rl.Vector2(text_x + 2, text_y + 2), dist_font_size, 0, rl.Color(0, 0, 0, 150))
     # 繪製文字主體
     rl.draw_text_ex(self._font_bold, dist_text, rl.Vector2(text_x, text_y), dist_font_size, 0, dist_color)
 
   def _draw_tdx_info(self, rect: rl.Rectangle) -> None:
-    """TDX 路況警告：來回跑馬燈，黑底僅限文字顯示區域，字體 70，向上平移 20px"""
+    """TDX 路況警告：來回跑馬燈，黑底僅限文字顯示區域，字體 70，向上平移 15px"""
     if not self.tdx_event_active or not self.tdx_event_desc:
       return
 
@@ -404,7 +385,7 @@ class HudRenderer(Widget):
     display_width = min(text_size.x, max_text_width) if is_overflow else text_size.x
 
     pos_x = rect.x + (rect.width - display_width) / 2
-    pos_y = rect.y + (rect.height - text_size.y) / 2 - 20
+    pos_y = rect.y + (rect.height - text_size.y) / 2 - 15
     
     bg_rect = rl.Rectangle(
         pos_x - bg_padding_x, 
