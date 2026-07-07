@@ -368,7 +368,7 @@ class HudRenderer(Widget):
     rl.draw_text_ex(self._font_bold, dist_text, rl.Vector2(text_x, text_y), dist_font_size, 0, dist_color)
 
   def _draw_tdx_info(self, rect: rl.Rectangle) -> None:
-    """TDX 路況警告：來回跑馬燈，黑底僅限文字顯示區域，字體 70，向上平移 15px"""
+    """TDX 路況警告：來回跑馬燈，黑底僅限文字顯示區域，字體 70，向上平移 20px"""
     if not self.tdx_event_active or not self.tdx_event_desc:
       return
 
@@ -385,7 +385,7 @@ class HudRenderer(Widget):
     display_width = min(text_size.x, max_text_width) if is_overflow else text_size.x
 
     pos_x = rect.x + (rect.width - display_width) / 2
-    pos_y = rect.y + (rect.height - text_size.y) / 2 - 15
+    pos_y = rect.y + (rect.height - text_size.y) / 2 - 20
     
     bg_rect = rl.Rectangle(
         pos_x - bg_padding_x, 
