@@ -213,7 +213,7 @@ class HudRenderer(Widget):
       self.lead_dist_raw = 0.0
       self.lead_dist = "-"
 
-    # --- 讀取 TDX 狀態 (改為顯示事件分類標題，不加空格) ---
+    # --- 讀取 TDX 狀態 (顯示標題) ---
     try:
       tdx = sm['tdx']
       self.tdx_event_active = tdx.roadEvent.isActive
@@ -231,9 +231,7 @@ class HudRenderer(Widget):
               label_events = []
               for evt in events_part.split("/"):
                   parts = evt.split("|")
-                  # 取 | 前面的事件代碼 (例如 1, 2)
                   evt_type = parts[0] if len(parts) > 1 else '0'
-                  # 將代碼轉為對應的標題，找不到則顯示 [其他]
                   label = EVENT_TYPE_LABEL.get(evt_type, '[其他]')
                   label_events.append(label)
 
@@ -242,7 +240,6 @@ class HudRenderer(Widget):
                   if lbl not in unique_labels:
                       unique_labels.append(lbl)
 
-              # 直接組裝為「前方:標題」(無空格)，例如 前方:[事故][施工]
               self.tdx_event_desc = f"前方:{''.join(unique_labels)}"
           else:
               self.tdx_event_desc = ""
@@ -263,35 +260,6 @@ class HudRenderer(Widget):
     self._dp_indicator_show_right, self._dp_indicator_count_right, self._dp_indicator_color_right = \
       self._update_dp_indicator_side_state(car_state.rightBlinker, car_state.rightBlindspot,
                                            self._dp_indicator_show_right, self._dp_indicator_count_right)
-
-    # =========================================================================
-    # --- 測試模式：模擬方向燈與盲區來回顯示 (已註解關閉) ---
-    # =========================================================================
-    # t = time.time()
-    # cycle = int(t / 2) % 6  # 每 2 秒切換一個情境
-    #
-    # self.left_blinker = False
-    # self.right_blinker = False
-    # self.left_blindspot = False
-    # self.right_blindspot = False
-    #
-    # is_blinking = int(t * 2) % 2 == 0  # 每 0.5 秒閃爍
-    #
-    # if cycle == 0:
-    #     self.left_blinker = is_blinking
-    # elif cycle == 1:
-    #     self.right_blinker = is_blinking
-    # elif cycle == 2:
-    #     self.left_blindspot = True
-    # elif cycle == 3:
-    #     self.right_blindspot = True
-    # elif cycle == 4:
-    #     self.left_blinker = is_blinking
-    #     self.left_blindspot = True
-    # elif cycle == 5:
-    #     self.right_blinker = is_blinking
-    #     self.right_blindspot = True
-    # =========================================================================
 
     v_cruise_cluster = car_state.vCruiseCluster
     set_speed = (
@@ -328,15 +296,13 @@ class HudRenderer(Widget):
 
   def _draw_edge_warnings(self, rect: rl.Rectangle) -> None:
     """繪製兩側方向燈與盲區警示"""
-    bar_width = 30  # 寬度減半為 30
-    bar_height = int(rect.height * 0.60) # 高度設為畫面 60%
-    y_pos = int(rect.y + 20) # 靠上方對齊，閃過左下方紅球
+    bar_width = 30  
+    bar_height = int(rect.height * 0.60) 
+    y_pos = int(rect.y + 20) 
 
-    # 左側邊條
     if self._dp_indicator_show_left:
       rl.draw_rectangle(int(rect.x), y_pos, bar_width, bar_height, self._dp_indicator_color_left)
 
-    # 右側邊條
     if self._dp_indicator_show_right:
       rl.draw_rectangle(int(rect.x + rect.width - bar_width), y_pos, bar_width, bar_height, self._dp_indicator_color_right)
 
@@ -345,7 +311,6 @@ class HudRenderer(Widget):
     pos_x = int(rect.x + 46)
     pos_y = int(rect.y + rect.height - 39)
     
-    # 球體尺寸微調
     radius_x = 25.0
     radius_y = 25.0
     
@@ -364,9 +329,7 @@ class HudRenderer(Widget):
       center_color = rl.Color(255, 100, 100, 255)
       edge_color = rl.Color(180, 0, 0, 255)
 
-    # 繪製底層暗色 (做為邊緣)
     rl.draw_ellipse(pos_x, pos_y, radius_x, radius_y, edge_color)
-    # 繪製上層亮色 (稍微縮小，製造出球體的立體反光感)
     rl.draw_ellipse(pos_x, pos_y, radius_x * 0.7, radius_y * 0.7, center_color)
 
     dist_text = self.lead_dist
@@ -379,25 +342,26 @@ class HudRenderer(Widget):
     rl.draw_text_ex(self._font_bold, dist_text, rl.Vector2(text_x, text_y), dist_font_size, 0, dist_color)
 
   def _draw_tdx_info(self, rect: rl.Rectangle) -> None:
-    """TDX 路況警告：來回跑馬燈，黑底僅限文字顯示區域"""
+    """TDX 路況警告：來回跑馬燈，黑底僅限文字顯示區域，字體 70，向上平移 10px"""
     if not self.tdx_event_active or not self.tdx_event_desc:
       return
 
-    font_size = 65
+    # 將字體由 60 放大至 70
+    font_size = 70
     text_size = measure_text_cached(self._font_bold, self.tdx_event_desc, font_size)
     
     bg_padding_x = 25
     bg_padding_y = 15
     bar_width = 30
 
-    # 安全寬度 = 螢幕寬度扣掉左右兩側盲區條 (30*2)、文字左右邊距 (25*2) 以及額外防重疊留白 (20)
     max_text_width = rect.width - (bar_width * 2) - (bg_padding_x * 2) - 20 
     
     is_overflow = text_size.x > max_text_width
     display_width = min(text_size.x, max_text_width) if is_overflow else text_size.x
 
     pos_x = rect.x + (rect.width - display_width) / 2
-    pos_y = rect.y + (rect.height - text_size.y) / 2
+    # 將 Y 軸位置往上平移 10 個像素
+    pos_y = rect.y + (rect.height - text_size.y) / 2 - 10
     
     bg_rect = rl.Rectangle(
         pos_x - bg_padding_x, 
@@ -406,10 +370,8 @@ class HudRenderer(Widget):
         text_size.y + bg_padding_y * 2
     )
     
-    # 繪製文字區域專屬的靜態黑色底色 (取代原本涵蓋全畫面的半透明遮罩)
     rl.draw_rectangle_rounded(bg_rect, 0.2, 10, rl.Color(0, 0, 0, 180))
 
-    # 繪製呼吸燈閃爍紅色背景
     alpha = 150 + int(60 * math.sin(time.time() * 5))
     rl.draw_rectangle_rounded(bg_rect, 0.2, 10, rl.Color(220, 50, 50, alpha))
     
@@ -421,7 +383,6 @@ class HudRenderer(Widget):
       scroll_duration = extra_width / scroll_speed
       pause_duration = 2.0    
 
-      # 使用時間週期計算，達成「向左捲到底 -> 停頓 -> 向右原路捲回 -> 停頓」的平滑來回效果
       cycle_time = time.time() % ((scroll_duration + pause_duration) * 2)
 
       if cycle_time < pause_duration:
