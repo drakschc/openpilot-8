@@ -264,30 +264,30 @@ class HudRenderer(Widget):
     # =========================================================================
     # --- 測試模式：模擬方向燈與盲區來回顯示 (已註解關閉) ---
     # =========================================================================
-    # t = time.time()
-    # cycle = int(t / 2) % 6  # 每 2 秒切換一個情境
+      t = time.time()
+      cycle = int(t / 2) % 6  # 每 2 秒切換一個情境
     #
-    # self.left_blinker = False
-    # self.right_blinker = False
-    # self.left_blindspot = False
-    # self.right_blindspot = False
+      self.left_blinker = False
+      self.right_blinker = False
+      self.left_blindspot = False
+      self.right_blindspot = False
     #
-    # is_blinking = int(t * 2) % 2 == 0  # 每 0.5 秒閃爍
+      is_blinking = int(t * 2) % 2 == 0  # 每 0.5 秒閃爍
     #
-    # if cycle == 0:
-    #     self.left_blinker = is_blinking
-    # elif cycle == 1:
-    #     self.right_blinker = is_blinking
-    # elif cycle == 2:
-    #     self.left_blindspot = True
-    # elif cycle == 3:
-    #     self.right_blindspot = True
-    # elif cycle == 4:
-    #     self.left_blinker = is_blinking
-    #     self.left_blindspot = True
-    # elif cycle == 5:
-    #     self.right_blinker = is_blinking
-    #     self.right_blindspot = True
+      if cycle == 0:
+          self.left_blinker = is_blinking
+      elif cycle == 1:
+          self.right_blinker = is_blinking
+      elif cycle == 2:
+          self.left_blindspot = True
+      elif cycle == 3:
+          self.right_blindspot = True
+      elif cycle == 4:
+          self.left_blinker = is_blinking
+          self.left_blindspot = True
+      elif cycle == 5:
+          self.right_blinker = is_blinking
+          self.right_blindspot = True
     # =========================================================================
 
     v_cruise_cluster = car_state.vCruiseCluster
