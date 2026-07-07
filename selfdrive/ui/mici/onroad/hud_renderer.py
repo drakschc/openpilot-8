@@ -361,7 +361,7 @@ class HudRenderer(Widget):
 
     pos_x = rect.x + (rect.width - display_width) / 2
     # 將 Y 軸位置往上平移 10 個像素
-    pos_y = rect.y + (rect.height - text_size.y) / 2 - 10
+    pos_y = rect.y + (rect.height - text_size.y) / 2 - 15
     
     bg_rect = rl.Rectangle(
         pos_x - bg_padding_x, 
