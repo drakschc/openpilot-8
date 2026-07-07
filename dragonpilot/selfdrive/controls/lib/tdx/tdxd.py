@@ -346,7 +346,7 @@ def main():
     # ==========================================
     # 測試點設定 (可自行開關) 切換回真實的車輛 GPS，只要把 TEST_MODE = True 改成 TEST_MODE = False
     # ==========================================
-    TEST_MODE = True
+    TEST_MODE = False
     TEST_LAT = 24.876682
     TEST_LON = 121.036311 
     TEST_BEARING = 0.0   
