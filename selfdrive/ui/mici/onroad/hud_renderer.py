@@ -307,7 +307,7 @@ class HudRenderer(Widget):
       rl.draw_rectangle(int(rect.x + rect.width - bar_width), y_pos, bar_width, bar_height, self._dp_indicator_color_right)
 
   def _draw_lead_info(self, rect: rl.Rectangle) -> None:
-    """繪製立體球體與前車距離 (加入未鎖定/距離過近的閃爍警示)"""
+    """繪製立體球體與前車距離"""
     pos_x = int(rect.x + 46)
     pos_y = int(rect.y + rect.height - 39)
     
@@ -321,9 +321,8 @@ class HudRenderer(Widget):
     is_warning = (self.lead_dist == "-") or (self.lead_dist_raw < 15.0)
 
     if is_warning:
-      # 計算閃爍 Alpha 值 (約在 45 ~ 255 之間來回)
-      # 調整乘數控制閃爍速度
-      alpha = 150 + int(105 * math.sin(time.time() * 8))
+      # 同步 TDX 頻道的呼吸燈頻率與透明度
+      alpha = 150 + int(60 * math.sin(time.time() * 5))
       
       center_color = rl.Color(255, 100, 100, alpha) 
       edge_color = rl.Color(180, 0, 0, alpha)       
@@ -342,7 +341,6 @@ class HudRenderer(Widget):
     # 繪製上層亮色 (稍微縮小，製造出球體的立體反光感)
     rl.draw_ellipse(pos_x, pos_y, radius_x * 0.7, radius_y * 0.7, center_color)
 
-    # 繪製前車距離字串
     dist_text = self.lead_dist
     dist_font_size = 40
     dist_size = measure_text_cached(self._font_bold, dist_text, dist_font_size)
