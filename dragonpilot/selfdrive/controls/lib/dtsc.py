@@ -33,7 +33,7 @@ DECEL_V  = np.array([0.0, -0.1, -0.3, -0.5, -0.8, -1.1, -1.4, -1.8, -2.3])
 MAX_COMFORT_DECEL = -2.0       
 EMERGENCY_DECEL   = -3.0       
 MIN_CURVE_DISTANCE = 10.0      
-MAX_EXIT_ACCEL = 0.4           
+MAX_EXIT_ACCEL = 0.6           
 
 # ==========================================================
 # [二、防變道急煞與狀態平滑參數 (保留 v27 免疫幽靈急煞設定)]
@@ -46,7 +46,7 @@ CURVATURE_MIN_FOR_PERSIST = 0.01
 SHORT_DIST_IGNORE = 3.5        
 SCCV_ABORT_PRED_LAT_ACC_TH = 0.7 
 FUTURE_CURVE_THRESHOLD = 0.015 
-HYSTERESIS_TIME = 1.5          
+HYSTERESIS_TIME = 0.5          
 
 # =============================
 # 工具函式
